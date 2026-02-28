@@ -1,0 +1,67 @@
+---
+title: "zb completion"
+description: "Generate shell completion scripts for zerobrew"
+---
+
+Generates shell completion scripts that enable tab completion for zerobrew commands, subcommands, and options.
+
+## Usage
+
+```bash
+zb completion <SHELL>
+```
+
+## Arguments
+
+<ParamField path="SHELL" type="string" required>
+  The shell for which to generate completions. Supported shells:
+  - `bash` - Bourne Again Shell
+  - `zsh` - Z Shell
+  - `fish` - Friendly Interactive Shell
+  - `powershell` - PowerShell
+  - `elvish` - Elvish Shell
+</ParamField>
+
+## Examples
+
+### Generate bash completions
+
+```bash
+zb completion bash > ~/.local/share/bash-completion/completions/zb
+```
+
+### Generate zsh completions
+
+```bash
+zb completion zsh > "${fpath[1]}/_zb"
+```
+
+### Generate fish completions
+
+```bash
+zb completion fish > ~/.config/fish/completions/zb.fish
+```
+
+### Generate PowerShell completions
+
+```bash
+zb completion powershell > zb.ps1
+```
+
+## Installation
+
+For detailed setup instructions for each shell, including how to install and activate completions, see the [Shell Completion Guide](/guides/shell-completion).
+
+## What Gets Completed
+
+The completion scripts provide intelligent tab completion for:
+
+- **Commands**: `install`, `uninstall`, `bundle`, `list`, `info`, etc.
+- **Subcommands**: `bundle install`, `bundle dump`
+- **Flags**: `--no-link`, `--build-from-source`, `--force`, etc.
+- **Formula names**: Based on available Homebrew formulas
+- **File paths**: For commands that accept file arguments
+
+## Related Commands
+
+- [Shell Completion Guide](/guides/shell-completion) - Detailed setup instructions for each shell

@@ -92,7 +92,8 @@
             "pages": [
               "commands/migrate",
               "commands/init",
-              "commands/run"
+              "commands/run",
+              "commands/completion"
             ]
           }
         ]
