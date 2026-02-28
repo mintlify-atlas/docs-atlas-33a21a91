@@ -1,0 +1,114 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "zerobrew",
+  "projectDescription": "A 5-20x faster experimental Homebrew alternative with content-addressable storage and zero-overhead package management.",
+  "theme": "aspen",
+  "primaryColor": "#0EA5E9",
+  "lightColor": "#38BDF8",
+  "darkColor": "#0284C7",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/architecture",
+              "concepts/content-addressable-storage",
+              "concepts/performance"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/migration-from-homebrew",
+              "guides/brewfile-management",
+              "guides/building-from-source",
+              "guides/shell-completion"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/environment-variables",
+              "configuration/advanced-settings"
+            ]
+          },
+          {
+            "group": "Resources",
+            "pages": [
+              "troubleshooting",
+              "contributing",
+              "changelog"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Command Reference",
+        "groups": [
+          {
+            "group": "Core Commands",
+            "pages": [
+              "commands/install",
+              "commands/uninstall",
+              "commands/bundle",
+              "commands/list",
+              "commands/info"
+            ]
+          },
+          {
+            "group": "Management Commands",
+            "pages": [
+              "commands/update",
+              "commands/outdated",
+              "commands/gc",
+              "commands/reset"
+            ]
+          },
+          {
+            "group": "Utility Commands",
+            "pages": [
+              "commands/migrate",
+              "commands/init",
+              "commands/run"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Content-addressable storage with APFS clonefile support for zero-overhead copying",
+    "Parallel installation with configurable concurrency (5-20x faster than Homebrew)",
+    "Brewfile support for reproducible package environments",
+    "Source build fallback when pre-built bottles are unavailable",
+    "Seamless migration from existing Homebrew installations",
+    "Garbage collection for efficient storage management",
+    "Shell completion support for bash, zsh, and fish"
+  ],
+  "publicApiSurface": [
+    "zb install <formulas...> [--no-link] [--build-from-source]",
+    "zb uninstall <formulas...> [--all]",
+    "zb bundle [install|dump] [-f FILE] [--force]",
+    "zb migrate [--yes] [--force]",
+    "zb list",
+    "zb info <formula>",
+    "zb update",
+    "zb outdated [--quiet|--verbose|--json]",
+    "zb gc",
+    "zb reset [--yes]",
+    "zb init [--no-modify-path]",
+    "zb completion <shell>",
+    "zbx <formula> <args...>"
+  ]
+}
