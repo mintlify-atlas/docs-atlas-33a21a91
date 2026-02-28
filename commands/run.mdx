@@ -1,0 +1,220 @@
+---
+title: zbx (zb run)
+description: Run a package without linking it to your PATH
+---
+
+The `zbx` command (alias for `zb run`) allows you to execute a package without creating permanent symlinks in your `$PATH`. This is useful for trying packages, running one-off commands, or avoiding conflicts with existing installations.
+
+## Usage
+
+```bash
+zbx <formula> [args...]
+```
+
+Or using the full command:
+
+```bash
+zb run <formula> [args...]
+```
+
+## How It Works
+
+1. **Check Installation**: If the package is already installed, use it directly
+2. **Temporary Install**: If not installed, install it temporarily (without linking)
+3. **Execute**: Run the package's main executable with the provided arguments
+4. **Environment Setup**: Automatically configures SSL certificates and library paths
+
+The package remains available for future `zbx` calls but isn't added to your `$PATH`.
+
+## Arguments
+
+<ParamField path="formula" type="string" required>
+  Name of the Homebrew formula to run
+</ParamField>
+
+<ParamField path="args" type="string...">
+  Arguments to pass to the executable (supports flags with hyphens)
+</ParamField>
+
+## Examples
+
+### Run a Command Without Installing
+
+Try `jq` without adding it to your system:
+
+```bash
+zbx jq --version
+```
+
+Output:
+```
+==> Installing jq temporarily...
+==> Executing jq...
+jq-1.7.1
+```
+
+### Use a Package for a Single Task
+
+Process JSON data without permanent installation:
+
+```bash
+echo '{"name": "zerobrew"}' | zbx jq .name
+```
+
+Output:
+```
+"zerobrew"
+```
+
+### Pass Complex Arguments
+
+All arguments after the formula name are forwarded:
+
+```bash
+zbx wget --help
+zbx git clone https://github.com/example/repo.git
+zbx ffmpeg -i input.mp4 -c:v libx264 output.mp4
+```
+
+### Avoid Conflicts with Existing Tools
+
+Use zerobrew's version without affecting system installations:
+
+```bash
+# Use system git normally
+git --version
+
+# Use zerobrew's git for a specific operation
+zbx git --version
+```
+
+## Comparison with Install
+
+| Aspect | `zb install` | `zbx` / `zb run` |
+|--------|--------------|------------------|
+| Symlinks to PATH | ✅ Yes | ❌ No |
+| Permanent | ✅ Yes | ✅ Yes (but not linked) |
+| Multiple packages | ✅ Yes | ❌ One at a time |
+| Use case | Regular tools | One-off commands |
+
+## Environment Configuration
+
+When running a package, `zbx` automatically sets:
+
+### SSL/TLS Certificates
+
+```bash
+CURL_CA_BUNDLE="$ZEROBREW_PREFIX/opt/ca-certificates/share/ca-certificates/cacert.pem"
+SSL_CERT_FILE="$ZEROBREW_PREFIX/opt/ca-certificates/share/ca-certificates/cacert.pem"
+SSL_CERT_DIR="$ZEROBREW_PREFIX/etc/ca-certificates"
+```
+
+### Library Path (Linux)
+
+```bash
+LD_LIBRARY_PATH="$ZEROBREW_PREFIX/lib:$LD_LIBRARY_PATH"
+```
+
+This ensures packages can find their dependencies without linking.
+
+## Use Cases
+
+### Try Before You Install
+
+Test a package before committing to installation:
+
+```bash
+zbx ripgrep --help
+# If you like it:
+zb install ripgrep
+```
+
+### Run Development Tools
+
+Use build tools without cluttering your PATH:
+
+```bash
+zbx cmake --version
+zbx ninja --version
+```
+
+### Scripting with Temporary Dependencies
+
+Use packages in scripts without requiring pre-installation:
+
+```bash
+#!/bin/bash
+data=$(zbx jq -r '.version' package.json)
+echo "Version: $data"
+```
+
+### Resolve Version Conflicts
+
+Run different package versions without interfering:
+
+```bash
+# Use system python
+python --version
+
+# Use zerobrew's python for specific task
+zbx python --version
+```
+
+## Installation Behavior
+
+When you run a package:
+
+- **First time**: Package is installed to the Cellar but not linked
+- **Subsequent runs**: Existing installation is reused immediately
+- **Manual installation**: If you later run `zb install <formula>`, it will link the existing package
+
+```bash
+# First run - installs
+zbx jq --version
+# ==> Installing jq temporarily...
+
+# Second run - reuses
+zbx jq --version
+# ==> Running jq...
+
+# Link it permanently
+zb install jq
+# Uses existing installation, just creates symlinks
+```
+
+## Error Handling
+
+### Formula Not Found
+
+```
+Error: Formula 'nonexistent' not found in homebrew-core
+```
+
+### Executable Missing
+
+```
+Error: executable 'formula-name' not found in package 'formula-name'
+```
+
+Some packages install executables with different names than the formula. Use `zb info <formula>` to see what's included.
+
+### Permission Denied
+
+If the package requires initialization:
+
+```
+Note: Zerobrew needs to be initialized first.
+Initialize now? [Y/n]
+```
+
+Run `zb init` first or use `--auto-init`:
+
+```bash
+zb --auto-init run jq --version
+```
+
+## Related Commands
+
+- [`zb install`](/commands/install) - Install and link packages permanently
+- [`zb uninstall`](/commands/uninstall) - Remove installed packages
+- [`zb info`](/commands/info) - View package information

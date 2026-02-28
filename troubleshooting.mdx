@@ -1,0 +1,116 @@
+---
+title: "Troubleshooting"
+description: "Common issues and solutions for zerobrew"
+---
+
+Having trouble with zerobrew? Check these common issues and solutions.
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion icon="circle-exclamation" title="Permission errors during installation">
+    If you encounter permission errors when running `zb install`, this usually means zerobrew doesn't have write access to the installation directory.
+
+    **Solution:**
+    - Ensure you have proper permissions for the installation prefix
+    - On macOS, zerobrew defaults to `/opt/zerobrew` to stay within the 13-character Mach-O path limit
+    - You can customize the installation directory during setup
+    - Avoid using `sudo` with zerobrew commands
+  </Accordion>
+
+  <Accordion icon="link-slash" title="Symlink conflicts or bricked installs">
+    You may encounter errors about symlink conflicts when installing packages.
+
+    **Solution:**
+    - zerobrew now prevents bricked installs from link conflicts and respects keg-only formulas
+    - If you're experiencing this issue, make sure you're running the latest version of zerobrew
+    - For keg-only formulas, zerobrew will not create symlinks in the main bin directory
+  </Accordion>
+
+  <Accordion icon="download" title="Package download fails or hangs">
+    Download issues can occur due to network problems or unavailable bottles.
+
+    **Solution:**
+    - Check your internet connection
+    - Try again after a few minutes (the Homebrew API might be temporarily unavailable)
+    - If no bottle is available for your platform, use the `--build-from-source` or `-s` flag:
+      ```bash
+      zb install <package> --build-from-source
+      ```
+    - This will compile the package from source locally
+  </Accordion>
+
+  <Accordion icon="terminal" title="Shell initialization issues">
+    If zerobrew commands aren't recognized after installation, your shell may not be properly configured.
+
+    **Solution:**
+    - zerobrew should automatically configure your shell during installation
+    - Supported shells: bash, zsh, and fish
+    - Restart your terminal or run:
+      ```bash
+      source ~/.bashrc  # for bash
+      source ~/.zshrc   # for zsh
+      ```
+    - For fish, run: `source ~/.config/fish/config.fish`
+  </Accordion>
+
+  <Accordion icon="apple" title="macOS-specific: zbx-darwin-arm64 not found">
+    On macOS ARM (M1/M2/M3), you might see an error about missing `zbx-darwin-arm64`.
+
+    **Solution:**
+    - This was fixed in recent releases where zbx binaries are now included
+    - Update to the latest version of zerobrew
+    - Run `zb update` or reinstall zerobrew from the latest release
+  </Accordion>
+
+  <Accordion icon="wrench" title="Binary patching errors on macOS">
+    Some packages may fail to install with errors related to binary patching.
+
+    **Solution:**
+    - zerobrew automatically patches Mach-O binaries to work with custom prefixes
+    - Recent versions preserve the execute bit when patching
+    - If the new prefix is longer than the old one, patching is skipped automatically
+    - Ensure you're using the latest version of zerobrew
+  </Accordion>
+
+  <Accordion icon="puzzle-piece" title="External taps or casks not working">
+    Issues installing packages from external taps or cask formulas.
+
+    **Solution:**
+    - zerobrew now supports external taps and casks with safer install/uninstall behavior
+    - Make sure you're running the latest version
+    - For GitHub releases, zerobrew will attempt to install directly with a clone fallback
+  </Accordion>
+
+  <Accordion icon="gauge-high" title="Slow installation or performance issues">
+    Installations taking longer than expected.
+
+    **Solution:**
+    - zerobrew is optimized for speed with parallel downloads and minimal overhead
+    - Check your network connection speed
+    - Clear the cache and try again: `zb cleanup`
+    - Building from source will naturally take longer than installing bottles
+  </Accordion>
+</AccordionGroup>
+
+## Need More Help?
+
+If you're still experiencing issues:
+
+<CardGroup cols={2}>
+  <Card title="Open an Issue" icon="github" href="https://github.com/lucasgelfond/zerobrew/issues">
+    Report bugs or request features on GitHub
+  </Card>
+  
+  <Card title="Join Discord" icon="discord" href="https://discord.gg/TVatsQBFJt">
+    Get help from the community and maintainers
+  </Card>
+</CardGroup>
+
+<Tip>
+  When reporting issues, include:
+  - Your operating system and version
+  - zerobrew version (run `zb --version`)
+  - The full command you ran
+  - The complete error message
+</Tip>

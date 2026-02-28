@@ -1,0 +1,359 @@
+---
+title: Shell Completion
+description: Enable tab completion for zerobrew commands in bash, zsh, and fish
+---
+
+zerobrew provides shell completion scripts that enable tab completion for commands, subcommands, and options in your shell.
+
+## Supported Shells
+
+Completion is available for:
+- **bash**
+- **zsh** 
+- **fish**
+- **powershell** (Windows)
+- **elvish**
+
+## Installing Completion
+
+Use the `zb completion` command to generate completion scripts for your shell.
+
+### Bash
+
+<Steps>
+  <Step title="Generate completion script">
+    ```bash
+    zb completion bash > ~/.local/share/bash-completion/completions/zb
+    ```
+
+    If the directory doesn't exist:
+
+    ```bash
+    mkdir -p ~/.local/share/bash-completion/completions
+    zb completion bash > ~/.local/share/bash-completion/completions/zb
+    ```
+  </Step>
+
+  <Step title="Reload your shell">
+    ```bash
+    source ~/.bashrc
+    # or start a new terminal session
+    ```
+  </Step>
+
+  <Step title="Test completion">
+    ```bash
+    zb ins<TAB>        # Completes to: zb install
+    zb install --<TAB> # Shows: --build-from-source --no-link
+    ```
+  </Step>
+</Steps>
+
+#### Alternative: Source directly in .bashrc
+
+Add to your `~/.bashrc`:
+
+```bash
+eval "$(zb completion bash)"
+```
+
+Then reload:
+
+```bash
+source ~/.bashrc
+```
+
+### Zsh
+
+<Steps>
+  <Step title="Generate completion script">
+    Create completions directory if needed:
+
+    ```bash
+    mkdir -p ~/.zsh/completion
+    ```
+
+    Generate the script:
+
+    ```bash
+    zb completion zsh > ~/.zsh/completion/_zb
+    ```
+  </Step>
+
+  <Step title="Update .zshrc">
+    Add the completion directory to your `fpath` before `compinit` in `~/.zshrc`:
+
+    ```bash
+    # Add before compinit
+    fpath=(~/.zsh/completion $fpath)
+    autoload -Uz compinit
+    compinit
+    ```
+
+    If you don't have `compinit` yet, add:
+
+    ```bash
+    autoload -Uz compinit
+    compinit
+    ```
+  </Step>
+
+  <Step title="Reload your shell">
+    ```bash
+    source ~/.zshrc
+    # or
+    exec zsh
+    ```
+  </Step>
+
+  <Step title="Test completion">
+    ```bash
+    zb bun<TAB>        # Completes to: zb bundle
+    zb bundle <TAB>    # Shows: dump install
+    ```
+  </Step>
+</Steps>
+
+#### Alternative: Oh My Zsh users
+
+If you use Oh My Zsh:
+
+```bash
+zb completion zsh > ~/.oh-my-zsh/completions/_zb
+```
+
+Then reload:
+
+```bash
+exec zsh
+```
+
+### Fish
+
+<Steps>
+  <Step title="Generate completion script">
+    ```bash
+    zb completion fish > ~/.config/fish/completions/zb.fish
+    ```
+
+    Create the directory if needed:
+
+    ```bash
+    mkdir -p ~/.config/fish/completions
+    zb completion fish > ~/.config/fish/completions/zb.fish
+    ```
+  </Step>
+
+  <Step title="Reload completions">
+    Fish automatically loads completions from `~/.config/fish/completions/`. Start a new shell or run:
+
+    ```bash
+    source ~/.config/fish/completions/zb.fish
+    ```
+  </Step>
+
+  <Step title="Test completion">
+    ```bash
+    zb mig<TAB>         # Completes to: zb migrate
+    zb migrate --<TAB>  # Shows: --force --yes
+    ```
+  </Step>
+</Steps>
+
+### PowerShell (Windows)
+
+Add to your PowerShell profile:
+
+```powershell
+zb completion powershell | Out-String | Invoke-Expression
+```
+
+To find your profile location:
+
+```powershell
+$PROFILE
+```
+
+### Elvish
+
+Add to your `~/.elvish/rc.elv`:
+
+```elvish
+eval (zb completion elvish)
+```
+
+## What Gets Completed
+
+The completion scripts provide suggestions for:
+
+### Commands
+
+```bash
+zb <TAB>
+```
+
+Shows:
+```
+bundle      gc          info        list        reset
+completion  help        init        migrate     run
+install     outdated    uninstall   update
+```
+
+### Subcommands
+
+```bash
+zb bundle <TAB>
+```
+
+Shows:
+```
+dump     install
+```
+
+### Flags and options
+
+```bash
+zb install --<TAB>
+```
+
+Shows:
+```
+--build-from-source  -s    Build from source instead of bottle
+--no-link                  Install without linking
+```
+
+```bash
+zb migrate --<TAB>
+```
+
+Shows:
+```
+--yes     -y    Skip confirmation prompts
+--force         Force uninstall from Homebrew
+```
+
+### File paths
+
+```bash
+zb bundle install --file <TAB>
+```
+
+Completes file paths in the current directory.
+
+## Updating Completions
+
+When you update zerobrew, regenerate completion scripts to get completions for new commands:
+
+```bash
+# Bash
+zb completion bash > ~/.local/share/bash-completion/completions/zb
+
+# Zsh
+zb completion zsh > ~/.zsh/completion/_zb
+
+# Fish
+zb completion fish > ~/.config/fish/completions/zb.fish
+```
+
+Then reload your shell.
+
+## Troubleshooting
+
+### Completions not working in bash
+
+Ensure `bash-completion` is installed:
+
+```bash
+# macOS
+brew install bash-completion@2
+
+# Ubuntu/Debian
+sudo apt-get install bash-completion
+
+# Fedora
+sudo dnf install bash-completion
+```
+
+Then verify `~/.bashrc` sources it:
+
+```bash
+# Add to ~/.bashrc if missing
+if [ -f /etc/bash_completion ]; then
+    . /etc/bash_completion
+fi
+```
+
+### Completions not working in zsh
+
+Verify `compinit` is being called:
+
+```bash
+grep compinit ~/.zshrc
+```
+
+It should appear **after** your `fpath` modifications:
+
+```bash
+fpath=(~/.zsh/completion $fpath)
+autoload -Uz compinit
+compinit
+```
+
+If you still have issues, rebuild the completion cache:
+
+```bash
+rm ~/.zcompdump
+exec zsh
+```
+
+### Completions not working in fish
+
+Verify the file exists:
+
+```bash
+ls ~/.config/fish/completions/zb.fish
+```
+
+Check for syntax errors:
+
+```bash
+fish -n ~/.config/fish/completions/zb.fish
+```
+
+Reload fish config:
+
+```bash
+source ~/.config/fish/config.fish
+```
+
+### Completion file permissions
+
+Ensure completion files are readable:
+
+```bash
+chmod 644 ~/.local/share/bash-completion/completions/zb
+chmod 644 ~/.zsh/completion/_zb
+chmod 644 ~/.config/fish/completions/zb.fish
+```
+
+## Manual Completion
+
+If you prefer not to install completions permanently, you can source them temporarily:
+
+```bash
+# Bash
+source <(zb completion bash)
+
+# Zsh
+source <(zb completion zsh)
+
+# Fish
+zb completion fish | source
+```
+
+This enables completions for the current session only.
+
+## Related Commands
+
+- `zb --help` - View all available commands
+- `zb <command> --help` - View help for a specific command

@@ -1,0 +1,169 @@
+---
+title: System architecture
+description: Understanding zerobrew's workspace structure and component organization
+---
+
+zerobrew is built as a Cargo workspace with three main crates that work together to provide fast package management for Homebrew packages.
+
+## Workspace structure
+
+The project is organized into three distinct crates, each with specific responsibilities:
+
+### zb_core
+
+Core data models and domain logic for zerobrew.
+
+**Responsibilities:**
+- Formula resolution and dependency closure calculation
+- Bottle selection logic (platform, architecture, OS version matching)
+- Build system detection and planning
+- Data types for formulas, bottles, and build configurations
+- Error handling types
+
+**Key modules:**
+- `formula`: Formula parsing, bottle selection, and dependency resolution
+- `build`: Build planning and install method determination
+- `context`: Configuration and path management
+- `errors`: Error types used across the system
+
+### zb_io
+
+I/O operations including network, storage, and filesystem operations.
+
+**Responsibilities:**
+- API client for Homebrew's formula and bottle metadata
+- Download orchestration with parallel chunked downloads
+- Archive extraction (tar.gz, tar.xz, tar.zst, zip)
+- Content-addressable storage management
+- Cellar materialization with APFS clonefile support
+- Binary patching for Homebrew path placeholders
+- Database operations for tracking installed packages
+- Source builds using Homebrew's Ruby DSL
+
+**Key modules:**
+- `network`: API client, download manager, HTTP caching
+- `storage`: Blob cache, content-addressable store, SQLite database
+- `cellar`: Keg materialization and linking
+- `extraction`: Archive unpacking and binary patching
+- `installer`: High-level installation orchestration
+- `build`: Source build execution
+
+### zb_cli
+
+Command-line interface and user-facing commands.
+
+**Responsibilities:**
+- CLI argument parsing
+- Command implementations (install, uninstall, bundle, etc.)
+- User interaction and progress display
+- Shell initialization and completion generation
+
+**Key modules:**
+- `commands`: Individual command implementations
+- `cli`: Argument parsing and command routing
+- `init`: Shell setup and PATH configuration
+- `utils`: Shared utilities for CLI operations
+
+## Directory structure
+
+zerobrew organizes its runtime data in a structured hierarchy:
+
+```
+/opt/zerobrew/          # Default installation root
+├── store/              # Content-addressable storage
+│   └── <sha256>/       # Extracted bottles by SHA-256 hash
+├── cellar/             # Installed packages (kegs)
+│   └── <name>/
+│       └── <version>/  # Package files
+├── cache/
+│   ├── blobs/          # Downloaded bottle archives
+│   │   └── <sha256>.tar.gz
+│   └── tmp/            # Temporary download files
+├── db/
+│   └── zb.sqlite3      # Installation tracking database
+└── locks/              # File locks for concurrent operations
+```
+
+<Info>
+  The store directory uses content-addressable storage, meaning bottles with the same SHA-256 hash are stored only once, even if multiple packages reference them.
+</Info>
+
+## Data flow
+
+Here's how the components work together during package installation:
+
+1. **Formula resolution** (zb_core)
+   - Parse user request and resolve formula name
+   - Fetch formula metadata from Homebrew API
+   - Calculate dependency closure
+   - Select appropriate bottle for current platform
+
+2. **Download** (zb_io)
+   - Check blob cache for existing download
+   - Download bottle using parallel chunked downloads
+   - Verify SHA-256 checksum
+   - Store in content-addressable blob cache
+
+3. **Storage** (zb_io)
+   - Extract bottle to store directory (keyed by SHA-256)
+   - Handle concurrent access with file locks
+   - Increment reference count in database
+
+4. **Materialization** (zb_io)
+   - Copy package files from store to cellar using APFS clonefile (macOS) or hardlinks
+   - Patch Homebrew placeholders in binaries
+   - Code sign and strip extended attributes (macOS)
+
+5. **Linking** (zb_io)
+   - Create symlinks in prefix/bin for executables
+   - Track linked files in database
+   - Detect and handle conflicts
+
+6. **Recording** (zb_io)
+   - Record installation in SQLite database
+   - Update store reference counts
+   - Track linked files for later cleanup
+
+## Concurrency and parallelism
+
+zerobrew is designed for high concurrency:
+
+- **Global download concurrency**: 20 simultaneous connections (configurable)
+- **Chunked downloads**: Large files (>10MB) use 6 parallel chunks
+- **Racing connections**: 3 concurrent attempts per download with 200ms stagger
+- **Parallel unpacking**: 4 concurrent extraction operations
+- **Parallel materialization**: 4 concurrent cellar operations
+
+<Tip>
+  The concurrency limits are tuned for optimal performance while respecting server rate limits and avoiding overwhelming the network.
+</Tip>
+
+## Database schema
+
+zerobrew uses SQLite to track installations:
+
+**installed_kegs**: Tracks which packages are installed
+- `name` (PRIMARY KEY): Package name
+- `version`: Installed version
+- `store_key`: SHA-256 hash or source build identifier
+- `installed_at`: Unix timestamp
+
+**store_refs**: Reference counting for garbage collection
+- `store_key` (PRIMARY KEY): SHA-256 hash
+- `refcount`: Number of kegs using this store entry
+
+**keg_files**: Tracks symlinks for conflict detection
+- `name`, `linked_path` (PRIMARY KEY): Package and link location
+- `version`: Package version
+- `target_path`: Actual file location in cellar
+
+## Build systems
+
+When pre-built bottles aren't available, zerobrew falls back to source builds:
+
+- **Homebrew Ruby DSL**: Executes formula install methods
+- **Environment isolation**: Separate build environment per package
+- **Dependency tracking**: Ensures build dependencies are available
+- **Source caching**: Downloads cached in blob storage
+
+Source builds are identified by `store_key` starting with `source:` instead of a SHA-256 hash.

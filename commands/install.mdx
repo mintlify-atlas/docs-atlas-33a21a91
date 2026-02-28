@@ -1,0 +1,179 @@
+---
+title: "zb install"
+description: "Install one or more packages from Homebrew"
+---
+
+Installs one or more formulas from Homebrew, with support for pre-built bottles and source builds.
+
+## Usage
+
+```bash
+zb install <FORMULAS>... [OPTIONS]
+```
+
+## Arguments
+
+<ParamField path="FORMULAS" type="string[]" required>
+  One or more formula names to install. Supports regular formulas and casks (prefixed with `cask:`).
+  
+  Examples: `jq`, `wget`, `git`, `cask:docker-desktop`
+</ParamField>
+
+## Options
+
+<ParamField path="--no-link" type="boolean">
+  Install the formula but skip linking it into the prefix directory. The formula will be installed in the store but won't be available in your PATH.
+  
+  Useful when you want to install a formula without making it immediately available.
+</ParamField>
+
+<ParamField path="--build-from-source" type="boolean">
+  Alias: `-s`
+  
+  Build the formula from source instead of using pre-built bottles. This compiles the package locally using Homebrew's Ruby DSL.
+  
+  Note: Source builds take significantly longer than installing bottles.
+</ParamField>
+
+<ParamField path="--root" type="path">
+  Environment: `ZEROBREW_ROOT`
+  
+  Override the root directory for zerobrew's content-addressable store.
+</ParamField>
+
+<ParamField path="--prefix" type="path">
+  Environment: `ZEROBREW_PREFIX`
+  
+  Override the prefix directory where packages are linked.
+</ParamField>
+
+<ParamField path="--concurrency" type="number">
+  Default: `20`
+  
+  Number of concurrent operations to perform during installation. Must be at least 1.
+</ParamField>
+
+<ParamField path="--auto-init" type="boolean">
+  Alias: `--yes`
+  
+  Environment: `ZEROBREW_AUTO_INIT`
+  
+  Automatically initialize zerobrew if not already set up.
+</ParamField>
+
+## Examples
+
+### Install a single package
+
+```bash
+zb install jq
+```
+
+```
+==> Installing jq...
+==> Resolving dependencies (1 packages)...
+    jq 1.7.1
+==> Downloading and installing formulas...
+    jq               ━━━━━━━━━━━━━━━━━━━━━━━━━   1.2MB/1.2MB   done
+
+==> Installed 1 packages in 2.45s
+```
+
+### Install multiple packages
+
+```bash
+zb install wget git
+```
+
+```
+==> Installing wget, git...
+==> Resolving dependencies (5 packages)...
+    wget 1.21.4
+    git 2.44.0
+    openssl@3 3.2.1
+    pcre2 10.43
+    gettext 0.22.5
+==> Downloading and installing formulas...
+
+==> Installed 5 packages in 8.32s
+```
+
+### Install without linking
+
+```bash
+zb install jq --no-link
+```
+
+The formula will be installed in the store but won't be symlinked into your PATH. You can still run it using `zbx jq`.
+
+### Build from source
+
+```bash
+zb install libsodium --build-from-source
+```
+
+```
+==> Installing libsodium...
+==> Resolving dependencies (1 packages)...
+    libsodium 1.0.19
+==> Downloading and installing formulas...
+    libsodium        unpacking...
+
+==> Installed 1 packages in 45.20s
+```
+
+### Install a cask
+
+```bash
+zb install cask:docker-desktop
+```
+
+## Performance
+
+zerobrew uses several optimizations to speed up installations:
+
+- **Content-addressable storage**: Shared dependencies are deduplicated
+- **APFS clonefiles**: Zero-overhead copying on compatible filesystems
+- **Concurrent downloads**: Multiple packages downloaded in parallel
+- **Warm cache**: Previously downloaded bottles are reused
+
+Typical speedups compared to Homebrew:
+- **Cold cache** (first install): 2-4x faster
+- **Warm cache** (reinstall): 7-30x faster
+
+## Error Handling
+
+### Link conflicts
+
+If a file already exists in the prefix directory, zerobrew will report a link conflict:
+
+```
+Error: The link step did not complete successfully.
+The formula was installed, but is not symlinked into the prefix.
+
+Possible conflicting files:
+  /usr/local/bin/jq (symlink belonging to homebrew)
+```
+
+You can resolve this by:
+1. Uninstalling the conflicting package with Homebrew
+2. Using `--no-link` and running with `zbx` instead
+3. Manually removing the conflicting symlink
+
+### Formula not found
+
+If a formula doesn't exist or isn't supported:
+
+```
+Error: Formula 'nonexistent' not found in homebrew-core
+
+Try using Homebrew directly:
+  brew install nonexistent
+```
+
+## Related Commands
+
+- [`zb bundle`](/commands/bundle) - Install packages from a Brewfile
+- [`zb uninstall`](/commands/uninstall) - Uninstall packages
+- [`zb list`](/commands/list) - List installed packages
+- [`zb run`](/commands/run) - Run a package without linking it

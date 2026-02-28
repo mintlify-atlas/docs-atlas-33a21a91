@@ -1,0 +1,326 @@
+---
+title: "zb bundle"
+description: "Install packages from or export packages to a Brewfile"
+---
+
+Manage package installations using Brewfiles, which are text files that list packages to install. This provides a declarative way to manage your development environment and makes it easy to reproduce setups across machines.
+
+## Usage
+
+```bash
+zb bundle [SUBCOMMAND] [OPTIONS]
+```
+
+## Subcommands
+
+### install
+
+Install packages from a Brewfile.
+
+```bash
+zb bundle install [OPTIONS]
+```
+
+**Options:**
+
+<ParamField path="--file" type="path">
+  Alias: `-f`
+  
+  Default: `Brewfile`
+  
+  Path to the Brewfile to read packages from.
+</ParamField>
+
+<ParamField path="--no-link" type="boolean">
+  Install formulas but skip linking them into the prefix directory.
+</ParamField>
+
+### dump
+
+Export currently installed packages to a Brewfile.
+
+```bash
+zb bundle dump [OPTIONS]
+```
+
+**Options:**
+
+<ParamField path="--file" type="path">
+  Alias: `-f`
+  
+  Default: `Brewfile`
+  
+  Path to write the Brewfile to.
+</ParamField>
+
+<ParamField path="--force" type="boolean">
+  Overwrite the file if it already exists. Without this flag, `dump` will fail if the target file exists.
+</ParamField>
+
+## Global Options
+
+<ParamField path="--root" type="path">
+  Environment: `ZEROBREW_ROOT`
+  
+  Override the root directory for zerobrew's content-addressable store.
+</ParamField>
+
+<ParamField path="--prefix" type="path">
+  Environment: `ZEROBREW_PREFIX`
+  
+  Override the prefix directory where packages are linked.
+</ParamField>
+
+<ParamField path="--concurrency" type="number">
+  Default: `20`
+  
+  Number of concurrent operations to perform during installation.
+</ParamField>
+
+<ParamField path="--auto-init" type="boolean">
+  Alias: `--yes`
+  
+  Environment: `ZEROBREW_AUTO_INIT`
+  
+  Automatically initialize zerobrew if not already set up.
+</ParamField>
+
+## Brewfile Format
+
+Brewfiles use a simple text format compatible with Homebrew:
+
+```ruby
+# Comments are supported
+brew "jq"
+brew "wget"
+brew "git"
+
+# Casks are supported
+cask "docker-desktop"
+
+# Taps are ignored by zerobrew
+tap "homebrew/cask"
+
+# Simple format also works
+ripgrep
+fd
+```
+
+**Syntax rules:**
+
+- Lines starting with `#` are comments
+- `brew "name"` - Install a formula
+- `cask "name"` - Install a cask
+- `tap "name"` - Ignored by zerobrew
+- Plain package names are also supported
+- Inline comments are supported: `jq # JSON processor`
+- Duplicate entries are automatically deduplicated
+
+## Examples
+
+### Install from default Brewfile
+
+Create a `Brewfile` in your current directory:
+
+```ruby
+brew "jq"
+brew "wget"
+brew "git"
+```
+
+Then install:
+
+```bash
+zb bundle
+```
+
+```
+==> Installing 3 formulas from Brewfile...
+==> Installing jq...
+==> Resolving dependencies (1 packages)...
+    jq 1.7.1
+==> Downloading and installing formulas...
+    jq               ━━━━━━━━━━━━━━━━━━━━━━━━━ ✓ installed
+
+==> Installed 1 packages in 2.45s
+==> Installing wget...
+...
+==> Finished installing manifest in 15.32s
+```
+
+### Install from custom file
+
+```bash
+zb bundle install -f myfile
+```
+
+```
+==> Installing 5 formulas from myfile...
+...
+```
+
+### Export installed packages
+
+```bash
+zb bundle dump
+```
+
+```
+==> Dumped 12 packages to Brewfile
+```
+
+Generated `Brewfile`:
+
+```ruby
+brew "jq"
+brew "wget"
+brew "git"
+brew "openssl@3"
+brew "pcre2"
+brew "gettext"
+brew "ripgrep"
+brew "fd"
+brew "bat"
+brew "exa"
+brew "httpie"
+brew "tree"
+```
+
+### Dump to custom file
+
+```bash
+zb bundle dump -f ~/my-setup/Brewfile
+```
+
+```
+==> Dumped 12 packages to /Users/username/my-setup/Brewfile
+```
+
+### Overwrite existing file
+
+```bash
+zb bundle dump --force
+```
+
+Without `--force`, if the file exists:
+
+```
+Error: file Brewfile already exists (use --force to overwrite)
+```
+
+### Install without linking
+
+```bash
+zb bundle install --no-link
+```
+
+All packages will be installed but not symlinked into your PATH.
+
+## Workflow Examples
+
+### Sync environment across machines
+
+**On machine A:**
+
+```bash
+zb bundle dump
+git add Brewfile
+git commit -m "Update Brewfile"
+git push
+```
+
+**On machine B:**
+
+```bash
+git pull
+zb bundle install
+```
+
+### Project-specific dependencies
+
+Add a `Brewfile` to your project repository:
+
+```ruby
+# Brewfile
+brew "node"
+brew "python@3.11"
+brew "postgresql@15"
+brew "redis"
+```
+
+Team members can install dependencies:
+
+```bash
+cd project
+zb bundle install
+```
+
+### Environment profiles
+
+Create different Brewfiles for different purposes:
+
+```bash
+zb bundle dump -f Brewfile.dev      # Development tools
+zb bundle dump -f Brewfile.data     # Data science tools
+zb bundle dump -f Brewfile.ops      # DevOps tools
+```
+
+Switch environments:
+
+```bash
+zb bundle install -f Brewfile.data
+```
+
+## Comparison with Homebrew
+
+| Feature | zerobrew | Homebrew |
+|---------|----------|----------|
+| Install from Brewfile | `zb bundle` | `brew bundle` |
+| Custom file | `zb bundle install -f FILE` | `brew bundle --file=FILE` |
+| Export Brewfile | `zb bundle dump` | `brew bundle dump` |
+| Force overwrite | `zb bundle dump --force` | `brew bundle dump --force` |
+| No link | `zb bundle install --no-link` | Not available |
+
+## Error Handling
+
+### File not found
+
+```bash
+zb bundle install -f missing.txt
+```
+
+```
+Error: failed to read manifest missing.txt: No such file or directory
+```
+
+### Empty Brewfile
+
+If your Brewfile contains only comments:
+
+```
+Error: manifest Brewfile did not contain any formulas
+```
+
+### File exists (dump)
+
+```bash
+zb bundle dump
+```
+
+If `Brewfile` already exists:
+
+```
+Error: file Brewfile already exists (use --force to overwrite)
+```
+
+Use `--force` to overwrite:
+
+```bash
+zb bundle dump --force
+```
+
+## Related Commands
+
+- [`zb install`](/commands/install) - Install individual packages
+- [`zb list`](/commands/list) - List installed packages
+- [`zb uninstall`](/commands/uninstall) - Uninstall packages

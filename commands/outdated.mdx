@@ -1,0 +1,159 @@
+---
+title: zb outdated
+description: List installed packages with available updates
+---
+
+The `zb outdated` command checks all installed packages against the latest available versions and reports which ones have updates available.
+
+## Usage
+
+```bash
+zb outdated [OPTIONS]
+```
+
+## Options
+
+<ParamField path="--quiet" type="flag">
+  Show only package names, one per line. Cannot be used with `--verbose` or `--json`.
+</ParamField>
+
+<ParamField path="--verbose" type="flag">
+  Show detailed version information with color-coded output. Cannot be used with `--quiet` or `--json`.
+</ParamField>
+
+<ParamField path="--json" type="flag">
+  Output results as JSON array. Cannot be used with `--quiet` or `--verbose`.
+</ParamField>
+
+## Description
+
+This command compares the installed versions of all packages against the latest versions available in the formula repository. It's useful for discovering which packages can be upgraded.
+
+The command supports three output formats:
+
+- **Default**: Shows package name with installed and available versions
+- **Quiet** (`--quiet`): Shows only package names (useful for scripting)
+- **Verbose** (`--verbose`): Shows detailed information with color highlighting
+- **JSON** (`--json`): Machine-readable structured output
+
+<Note>
+The `--quiet`, `--verbose`, and `--json` flags are mutually exclusive - you can only use one at a time.
+</Note>
+
+## Examples
+
+Check for outdated packages with default output:
+
+```bash
+zb outdated
+```
+
+Output:
+```
+node (20.10.0) < 20.11.0
+python (3.11.7) < 3.12.1
+```
+
+List only package names (quiet mode):
+
+```bash
+zb outdated --quiet
+```
+
+Output:
+```
+node
+python
+```
+
+Show detailed version information:
+
+```bash
+zb outdated --verbose
+```
+
+Output:
+```
+node 20.10.0 → 20.11.0
+python 3.11.7 → 3.12.1
+```
+
+Get JSON output for scripting:
+
+```bash
+zb outdated --json
+```
+
+Output:
+```json
+[
+  {
+    "name": "node",
+    "installed_versions": ["20.10.0"],
+    "current_version": "20.11.0"
+  },
+  {
+    "name": "python",
+    "installed_versions": ["3.11.7"],
+    "current_version": "3.12.1"
+  }
+]
+```
+
+Use in a shell script to upgrade outdated packages:
+
+```bash
+#!/bin/bash
+for package in $(zb outdated --quiet); do
+  zb install "$package"
+done
+```
+
+## Output Formats
+
+### Default Format
+
+Shows package name with versions in the format: `name (installed) < available`
+
+### Quiet Format
+
+One package name per line, with no additional information. This format is ideal for:
+- Shell scripts that need to process the list
+- Piping to other commands
+- Counting outdated packages with `wc -l`
+
+### Verbose Format
+
+Color-coded output showing:
+- Package name
+- Installed version (in red)
+- Arrow separator
+- Available version (in green)
+
+### JSON Format
+
+Structured JSON array where each object contains:
+- `name`: Package name
+- `installed_versions`: Array of installed versions (currently always contains one version)
+- `current_version`: Latest available version
+
+## When No Updates Available
+
+When all packages are up to date:
+
+```bash
+zb outdated
+```
+
+Output:
+```
+==> All packages are up to date.
+```
+
+In quiet mode, no output is produced when everything is current.
+
+## Related Commands
+
+- [zb update](/commands/update) - Update formula cache before checking for outdated packages
+- [zb install](/commands/install) - Install or upgrade packages
+- [zb list](/commands/list) - List all installed packages

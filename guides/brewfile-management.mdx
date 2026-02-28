@@ -1,0 +1,299 @@
+---
+title: Brewfile Management
+description: Use Brewfiles to manage and reproduce your package installations
+---
+
+Brewfiles are text files that list packages to install, similar to `package.json` for Node.js or `requirements.txt` for Python. zerobrew provides commands to install packages from Brewfiles and export your installed packages to a Brewfile.
+
+## Installing from a Brewfile
+
+### Default Brewfile
+
+To install all packages listed in a `Brewfile` in the current directory:
+
+```bash
+zb bundle
+```
+
+Or explicitly:
+
+```bash
+zb bundle install
+```
+
+This reads the `Brewfile` and installs each package sequentially:
+
+```
+==> Installing 5 formulas from Brewfile...
+==> Installing jq...
+==> Installing wget...
+==> Finished installing manifest in 12.34s
+```
+
+### Custom file location
+
+To install from a different file:
+
+```bash
+zb bundle install -f packages.txt
+zb bundle install --file ~/my-setup/Brewfile
+```
+
+### Install without linking
+
+To install packages without creating symlinks in the prefix:
+
+```bash
+zb bundle install --no-link
+```
+
+This is useful if you want to install packages but not add them to your PATH.
+
+## Brewfile Format
+
+Brewfiles support multiple formats:
+
+### Simple format
+
+List one package per line:
+
+```
+jq
+wget
+git
+sqlite
+```
+
+### Homebrew format
+
+Use `brew` directives with quotes:
+
+```ruby
+brew "jq"
+brew "wget"
+brew "git"
+brew "sqlite"
+```
+
+### Comments
+
+Add comments with `#`:
+
+```ruby
+# Development tools
+brew "jq"    # JSON processor
+brew "wget"  # File downloader
+
+# Version control
+brew "git"
+```
+
+### Mixed format
+
+Combine formats in the same file:
+
+```ruby
+# Can mix and match
+brew "jq"
+wget
+git  # inline comments work everywhere
+brew "sqlite"
+```
+
+### Tap and Cask directives
+
+```ruby
+tap "homebrew/core"        # Ignored by zerobrew
+brew "jq"
+cask "docker"              # Prefixed as cask:docker
+```
+
+<Warning>
+`tap` directives are ignored since zerobrew always uses `homebrew-core`. Cask entries are supported but functionality may be limited compared to CLI formulas.
+</Warning>
+
+## Exporting to a Brewfile
+
+### Default export
+
+To export all installed packages to a `Brewfile` in the current directory:
+
+```bash
+zb bundle dump
+```
+
+Output:
+
+```
+==> Dumped 15 packages to Brewfile
+```
+
+The generated Brewfile uses the `brew` directive format:
+
+```ruby
+brew "git"
+brew "jq"
+brew "sqlite"
+brew "wget"
+```
+
+### Custom output file
+
+To dump to a different file:
+
+```bash
+zb bundle dump -f my-packages.txt
+zb bundle dump --file ~/backups/Brewfile.2026-02-28
+```
+
+### Overwrite existing files
+
+By default, `dump` will fail if the target file exists:
+
+```
+Error: file Brewfile already exists (use --force to overwrite)
+```
+
+To overwrite:
+
+```bash
+zb bundle dump --force
+zb bundle dump -f output.txt --force
+```
+
+## Common Workflows
+
+<Steps>
+  <Step title="Create a portable development environment">
+    Export your current setup:
+
+    ```bash
+    zb bundle dump -f ~/dotfiles/Brewfile
+    ```
+
+    Commit to version control:
+
+    ```bash
+    cd ~/dotfiles
+    git add Brewfile
+    git commit -m "Add package manifest"
+    ```
+  </Step>
+
+  <Step title="Restore on a new machine">
+    Clone your dotfiles:
+
+    ```bash
+    git clone https://github.com/user/dotfiles.git
+    cd dotfiles
+    ```
+
+    Install all packages:
+
+    ```bash
+    zb bundle install
+    ```
+  </Step>
+</Steps>
+
+### Team development environment
+
+Create a shared Brewfile for your project:
+
+```ruby title="Brewfile"
+# Project dependencies
+brew "jq"           # JSON parsing in scripts
+brew "sqlite"       # Local database
+brew "git"
+
+# Development tools
+brew "ripgrep"      # Fast code search
+brew "fzf"          # Fuzzy finder
+```
+
+Team members can install:
+
+```bash
+zb bundle install
+```
+
+### Update and sync
+
+After installing new packages, update your Brewfile:
+
+```bash
+zb install ripgrep fzf
+zb bundle dump --force  # Update Brewfile
+git add Brewfile
+git commit -m "Add ripgrep and fzf"
+```
+
+## Brewfile Parsing Details
+
+### Duplicate handling
+
+Duplicate entries are automatically deduplicated:
+
+```ruby
+brew "jq"
+brew "wget"
+brew "jq"    # This duplicate is ignored
+```
+
+Result: Only `jq` and `wget` are installed (jq appears once).
+
+### Empty lines and whitespace
+
+Empty lines and leading/trailing whitespace are ignored:
+
+```ruby
+
+brew "jq"
+   wget   
+
+git
+```
+
+This is parsed as: `jq`, `wget`, `git`.
+
+### Error handling
+
+If the Brewfile contains only comments or is empty:
+
+```
+Error: manifest Brewfile did not contain any formulas
+```
+
+If the file doesn't exist:
+
+```
+Error: failed to read manifest Brewfile: No such file or directory
+```
+
+## Command Reference
+
+### `zb bundle install`
+
+```bash
+zb bundle install [OPTIONS]
+```
+
+Options:
+- `-f, --file <FILE>` - Path to Brewfile (default: `Brewfile`)
+- `--no-link` - Install without creating symlinks
+
+### `zb bundle dump`
+
+```bash
+zb bundle dump [OPTIONS]
+```
+
+Options:
+- `-f, --file <FILE>` - Output file path (default: `Brewfile`)
+- `--force` - Overwrite existing file
+
+## Related Commands
+
+- `zb install <formula>` - Install individual packages
+- `zb list` - View all installed packages
+- [Migration Guide](/guides/migration-from-homebrew) - Migrate from Homebrew and export to Brewfile

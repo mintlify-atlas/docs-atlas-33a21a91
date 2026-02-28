@@ -1,0 +1,86 @@
+---
+title: zb gc
+description: Run garbage collection to remove unreferenced store entries
+---
+
+The `zb gc` command performs garbage collection by removing store entries that are no longer referenced by any installed packages.
+
+## Usage
+
+```bash
+zb gc
+```
+
+## Description
+
+Zerobrew uses a content-addressed store to manage package files. When packages are uninstalled or upgraded, old versions may remain in the store. The garbage collector identifies and removes these unreferenced entries to free up disk space.
+
+This command is safe to run at any time - it will only remove store entries that are no longer needed by any installed package.
+
+## How It Works
+
+1. Scans all currently installed packages
+2. Identifies which store entries are referenced
+3. Removes any store entries that aren't referenced by installed packages
+4. Reports which entries were removed
+
+## Examples
+
+Run garbage collection:
+
+```bash
+zb gc
+```
+
+Run garbage collection after uninstalling packages:
+
+```bash
+zb uninstall node python
+zb gc
+```
+
+## Output
+
+When unreferenced entries are found and removed:
+
+```
+==> Running garbage collection...
+    ✓ Removed a1b2c3d4e5f6
+    ✓ Removed f6e5d4c3b2a1
+    ✓ Removed 9876543210ab
+==> Removed 3 store entries
+```
+
+When no unreferenced entries exist:
+
+```
+==> Running garbage collection...
+No unreferenced store entries to remove.
+```
+
+## When to Use
+
+Run garbage collection to free up disk space after:
+
+- Uninstalling packages
+- Upgrading packages (old versions remain until gc)
+- Failed installations that left partial store entries
+- Resetting or cleaning up your zerobrew installation
+
+<Tip>
+Garbage collection is automatically safe - it will never remove store entries that are still in use by installed packages.
+</Tip>
+
+## Performance
+
+The garbage collection process is typically fast, even with many installed packages. The command:
+
+- Only removes entries that are definitively unreferenced
+- Uses efficient graph traversal to identify orphaned entries
+- Operates directly on the filesystem without requiring network access
+
+## Related Commands
+
+- [zb uninstall](/commands/uninstall) - Uninstall packages (often followed by gc)
+- [zb reset](/commands/reset) - Reset entire zerobrew installation
+- [zb list](/commands/list) - List installed packages

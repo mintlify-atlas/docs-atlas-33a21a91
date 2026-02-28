@@ -1,0 +1,279 @@
+---
+title: Performance optimizations
+description: How zerobrew achieves 2-30x speedup over Homebrew through parallelism, caching, and zero-copy operations
+---
+
+zerobrew is designed for speed. Through aggressive parallelism, intelligent caching, and filesystem optimizations, it delivers significant performance improvements over Homebrew.
+
+## Benchmark results
+
+Real-world performance testing shows substantial speedups:
+
+| Package | Homebrew | ZB (cold) | ZB (warm) | Cold Speedup | Warm Speedup |
+|---------|----------|-----------|-----------|--------------|-------------|
+| **Overall (top 100)** | 452s | 226s | 59s | **2.0x** | **7.6x** |
+| ffmpeg | 3034ms | 3481ms | 688ms | 0.9x | 4.4x |
+| libsodium | 2353ms | 392ms | 130ms | 6.0x | 18.1x |
+| sqlite | 2876ms | 625ms | 159ms | 4.6x | 18.1x |
+| tesseract | 18950ms | 5536ms | 643ms | 3.4x | 29.5x |
+
+<Note>
+  **Cold cache**: First installation with no cached bottles
+  
+  **Warm cache**: Reinstallation with bottles already downloaded
+</Note>
+
+### Key observations
+
+- **Overall**: 2x faster on cold cache, 7.6x faster on warm cache for top 100 packages
+- **Small packages** (libsodium, sqlite): 6-18x faster due to parallelism and reduced overhead
+- **Large packages** (tesseract): Up to 29.5x faster on warm cache thanks to APFS clonefile
+- **Very large packages** (ffmpeg): Cold cache slightly slower due to chunked download overhead, but 4.4x faster warm
+
+## Optimization strategies
+
+zerobrew employs multiple performance optimizations working in concert:
+
+### 1. Parallel downloads
+
+**Racing connections** for download reliability:
+- 3 simultaneous connection attempts per download
+- 200ms stagger between attempts
+- First successful connection wins, others cancelled
+- Handles slow/unreliable mirrors gracefully
+
+**Chunked downloads** for large files:
+- Files over 10MB split into chunks (5-20MB each)
+- Up to 6 parallel chunks per file
+- HTTP range requests for resumable downloads
+- Automatic retry on chunk failure (up to 3 attempts)
+
+**Global concurrency limits:**
+- 20 maximum concurrent connections across all downloads
+- Prevents overwhelming servers or local network
+- Semaphore-based coordination across download tasks
+
+From `zb_io/src/network/download/mod.rs`:
+
+```rust
+const RACING_CONNECTIONS: usize = 3;
+const RACING_STAGGER_MS: u64 = 200;
+const CHUNKED_DOWNLOAD_THRESHOLD: u64 = 10 * 1024 * 1024;  // 10MB
+const GLOBAL_DOWNLOAD_CONCURRENCY: usize = 20;
+const MAX_CONCURRENT_CHUNKS: usize = 6;
+```
+
+<Tip>
+  The 20 concurrent connection limit is conservative and HTTP/1.1-compatible. Many package managers use 20-50 (npm uses up to 50).
+</Tip>
+
+### 2. Content-addressable caching
+
+**Blob cache** for downloaded bottles:
+- Bottles stored by SHA-256 hash in `cache/blobs/`
+- Automatic deduplication across package versions
+- Persistent across zerobrew runs
+- Warm cache enables instant reinstallation
+
+**Store layer** for extracted bottles:
+- Extracted once and reused by multiple packages
+- Reference counting tracks usage
+- Garbage collection removes unreferenced entries
+
+**API response cache:**
+- Formula metadata cached in SQLite
+- ETags and Last-Modified headers for conditional requests
+- Reduces API calls to Homebrew servers
+- Stale-while-revalidate pattern for instant responses
+
+### 3. APFS clonefile (macOS)
+
+Zero-copy materialization on macOS with APFS:
+
+- **Instant copying**: `clonefile` syscall creates copy-on-write clone in microseconds
+- **Space-efficient**: Clone shares disk blocks with original until modified
+- **Large packages**: FFmpeg (200MB+) materializes instantly instead of 2-3 seconds
+
+**Fallback chain:**
+1. APFS clonefile (instant, zero-copy)
+2. Hardlinks (fast, shared inodes)
+3. Regular copy (slow, last resort)
+
+This is why warm cache performance is dramatically faster on macOS - materialization cost approaches zero.
+
+### 4. Concurrent extraction and materialization
+
+Parallel operations across multiple packages:
+
+**Unpack concurrency**: 4 parallel extraction operations
+- Decompression (gzip, xz, zstd) is CPU-bound
+- Multiple cores utilized simultaneously
+- Tuned to avoid thrashing on typical hardware
+
+**Materialize concurrency**: 4 parallel cellar operations
+- Copying from store to cellar
+- Binary patching for Homebrew placeholders
+- Code signing (macOS) or permission setting
+
+From `zb_core/src/context.rs`:
+
+```rust
+struct ConcurrencyLimits {
+    download: usize,     // 20
+    unpack: usize,       // 4
+    materialize: usize,  // 4
+}
+```
+
+### 5. Optimized binary patching
+
+Bottles contain Homebrew path placeholders that must be rewritten:
+
+**macOS (Mach-O binaries):**
+- Scan binaries for placeholder strings
+- Rewrite load commands and string tables in-place
+- Ad-hoc code sign after modification
+- Parallel processing across files in keg
+
+**Linux (ELF binaries):**
+- Similar placeholder scanning and rewriting
+- No code signing required
+- Faster overall due to simpler binary format
+
+<Info>
+  Binary patching is parallelized using Rayon, processing multiple files simultaneously on multi-core systems.
+</Info>
+
+### 6. Database optimizations
+
+SQLite tuned for performance:
+
+**Transactions**: All installation operations wrapped in single transaction
+- Reduces fsync overhead
+- Ensures atomicity for complex operations
+- Much faster than individual statements
+
+**Indices**: Primary keys and foreign keys indexed
+- Fast lookups for installed packages
+- Efficient reference counting queries
+- Quick conflict detection for symlinks
+
+**Bundled SQLite**: Uses `rusqlite` with bundled SQLite
+- Consistent behavior across platforms
+- Latest performance improvements
+- No system dependency
+
+### 7. HTTP/2 and connection reuse
+
+Network stack optimizations:
+
+**HTTP/2**: Enabled by default via rustls
+- Multiplexed streams over single connection
+- Header compression reduces bandwidth
+- Server push capability (when supported)
+
+**Connection pooling**: `reqwest` client reused
+- TCP connection reuse across requests
+- TLS session resumption
+- Reduced latency for subsequent downloads
+
+**Compression**: Supports gzip, deflate, brotli
+- Automatic decompression of API responses
+- Reduces bandwidth for formula metadata
+
+### 8. Memory efficiency
+
+Streaming and bounded memory usage:
+
+**Streaming downloads**: Chunks written directly to disk
+- No buffering entire files in memory
+- Constant memory usage regardless of file size
+- SHA-256 computed incrementally during download
+
+**Streaming extraction**: Archive decompression streamed
+- Tar entries processed as they're decompressed
+- Memory usage proportional to largest file, not archive size
+
+## Running benchmarks
+
+To measure performance yourself:
+
+```bash
+just bench --full
+```
+
+This installs 100 popular packages with both Homebrew and zerobrew, measuring:
+- Cold cache performance (first install)
+- Warm cache performance (reinstall)
+- Per-package timing
+- Overall speedup factors
+
+Useful options:
+
+```bash
+just bench --quick           # Test 22 packages instead of 100
+just bench --dry-run         # Show what would be tested
+just bench --full results/   # Write all formats to directory
+just bench --format csv --output results.csv
+just bench --log bench.log   # Capture detailed logs
+```
+
+<Warning>
+  Benchmarks require both Homebrew and zerobrew installed. On macOS, ensure Homebrew prefix is user-writable.
+</Warning>
+
+## Performance tuning
+
+While zerobrew's defaults are tuned for most systems, you can adjust concurrency:
+
+**Download concurrency** (environment variable):
+```bash
+export ZB_DOWNLOAD_CONCURRENCY=30  # Increase from default 20
+```
+
+**CPU-bound operations** (unpack, materialize):
+- Automatically tuned to number of CPU cores
+- Override by modifying `ConcurrencyLimits` in code
+
+**Mirror configuration:**
+```bash
+export HOMEBREW_BOTTLE_MIRRORS="mirror1.com,mirror2.com"
+```
+
+## Why zerobrew is faster
+
+Summarizing the key advantages:
+
+1. **Aggressive parallelism**: Downloads, extractions, and materializations happen concurrently
+2. **Smart caching**: Multiple cache layers (blobs, store, API) eliminate redundant work
+3. **Zero-copy operations**: APFS clonefile makes materialization nearly free on macOS
+4. **Modern networking**: HTTP/2, connection reuse, parallel chunks, racing connections
+5. **Optimized I/O**: Streaming operations, minimal memory usage, efficient SQLite transactions
+6. **Native performance**: Rust compiled code vs Ruby interpreter overhead
+
+<Tip>
+  The speedup increases with:
+  - Number of packages installed together (more parallelism)
+  - Warm cache (APFS clonefile and blob reuse shine)
+  - Fast network (parallel downloads saturate bandwidth)
+  - SSD storage (APFS clonefile and parallel I/O benefit from low latency)
+</Tip>
+
+## Trade-offs
+
+Some performance trade-offs to be aware of:
+
+**Disk space**: Content-addressable storage uses more space short-term
+- Store layer keeps extracted bottles
+- Run `zb gc` periodically to reclaim space
+- Overall comparable to Homebrew after garbage collection
+
+**Initial overhead**: Very large files may be slower on cold cache
+- Chunked download coordination has overhead
+- Amortized across warm cache usage
+- FFmpeg example: 15% slower cold, 4.4x faster warm
+
+**Memory usage**: Parallel operations require more RAM
+- Each concurrent download/extraction needs memory
+- Still bounded and reasonable (~100-200MB typical)
+- Much less than naive "load everything into RAM" approach

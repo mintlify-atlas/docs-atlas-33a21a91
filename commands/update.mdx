@@ -1,0 +1,54 @@
+---
+title: zb update
+description: Update package formula cache
+---
+
+The `zb update` command clears the locally cached formula definitions, forcing zerobrew to fetch the latest package metadata on the next operation.
+
+## Usage
+
+```bash
+zb update
+```
+
+## Description
+
+This command clears zerobrew's API cache, which stores formula information. After running `zb update`, the next time you check for outdated packages or install new software, zerobrew will fetch fresh metadata from the remote repository.
+
+Unlike Homebrew's `brew update` which updates the tap repository itself, `zb update` simply clears the cached formula entries to ensure you get the latest information.
+
+## Examples
+
+Update the formula cache:
+
+```bash
+zb update
+```
+
+After updating, check which packages have new versions available:
+
+```bash
+zb update
+zb outdated
+```
+
+## Output
+
+When cache entries are cleared:
+
+```
+==> Cleared 42 cached formula entries.
+Run `zb outdated` to check for updates.
+```
+
+When the cache is already empty:
+
+```
+==> No cached entries to clear.
+Run `zb outdated` to check for updates.
+```
+
+## Related Commands
+
+- [zb outdated](/commands/outdated) - List packages with available updates
+- [zb install](/commands/install) - Install or upgrade packages

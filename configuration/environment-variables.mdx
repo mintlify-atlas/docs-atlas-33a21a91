@@ -1,0 +1,174 @@
+---
+title: Environment Variables
+description: Configure zerobrew behavior using environment variables
+---
+
+Zerobrew can be configured using environment variables to customize installation paths and behavior. These variables can be set in your shell configuration or passed directly when running commands.
+
+## Core Variables
+
+<ParamField path="ZEROBREW_ROOT" type="string" default="/opt/zerobrew (macOS) or $XDG_DATA_HOME/zerobrew (Linux)">
+  The root directory where zerobrew stores all its data, including the package store, cellar, cache, database, and locks.
+  
+  This directory contains:
+  - `store/` - Content-addressed package storage
+  - `cellar/` - Installed package metadata
+  - `cache/` - Downloaded package archives
+  - `db/` - SQLite database (zb.sqlite3)
+  - `locks/` - File locks for concurrent operations
+
+  **Platform defaults:**
+  - **macOS**: `/opt/zerobrew`
+  - **Linux**: `$XDG_DATA_HOME/zerobrew` (typically `~/.local/share/zerobrew`)
+
+  **Example:**
+  ```bash
+  export ZEROBREW_ROOT="$HOME/zerobrew"
+  ```
+</ParamField>
+
+<ParamField path="ZEROBREW_PREFIX" type="string" default="$ZEROBREW_ROOT (macOS) or $ZEROBREW_ROOT/prefix (Linux)">
+  The prefix directory where package binaries and libraries are symlinked. This is the directory you should add to your PATH.
+
+  **Platform-specific behavior:**
+  - **macOS**: Defaults to `ZEROBREW_ROOT` directly (e.g., `/opt/zerobrew`) to maintain compatibility with Mach-O binary path length constraints (13 characters, same as Homebrew's `/opt/homebrew`)
+  - **Linux**: Defaults to `$ZEROBREW_ROOT/prefix` to separate data from the installation prefix
+
+  This directory typically contains:
+  - `bin/` - Executable binaries
+  - `lib/` - Shared libraries
+  - `include/` - Header files
+  - `share/` - Shared data files
+  - `etc/` - Configuration files
+  - `opt/` - Individual package directories
+
+  **Example:**
+  ```bash
+  export ZEROBREW_PREFIX="/usr/local"
+  export PATH="$ZEROBREW_PREFIX/bin:$PATH"
+  ```
+</ParamField>
+
+<ParamField path="ZEROBREW_AUTO_INIT" type="boolean" default="false">
+  Automatically initialize zerobrew without prompting when running commands for the first time.
+
+  When set to `true`, zerobrew will automatically:
+  - Create the root and prefix directories
+  - Set up the internal directory structure
+  - Initialize the package database
+
+  This is useful for:
+  - CI/CD environments where interactive prompts are not possible
+  - Automated scripts and provisioning tools
+  - Docker containers and other non-interactive environments
+
+  **Example:**
+  ```bash
+  export ZEROBREW_AUTO_INIT=true
+  zb install wget  # Will auto-initialize if needed
+  ```
+</ParamField>
+
+## Additional Environment Variables
+
+Zerobrew also respects and sets several other environment variables for compatibility and functionality:
+
+### Package Config
+
+<ParamField path="PKG_CONFIG_PATH" type="string">
+  Automatically set by zerobrew's shell initialization to include `$ZEROBREW_PREFIX/lib/pkgconfig` for pkg-config to find installed libraries.
+  
+  **Example:**
+  ```bash
+  export PKG_CONFIG_PATH="$ZEROBREW_PREFIX/lib/pkgconfig:$PKG_CONFIG_PATH"
+  ```
+</ParamField>
+
+### SSL Certificates
+
+Zerobrew automatically configures SSL certificate paths when available:
+
+<ParamField path="CURL_CA_BUNDLE" type="string">
+  Path to the CA certificate bundle for curl and other tools. Automatically set to one of:
+  - `$ZEROBREW_PREFIX/opt/ca-certificates/share/ca-certificates/cacert.pem`
+  - `$ZEROBREW_PREFIX/etc/ca-certificates/cacert.pem`
+  - `$ZEROBREW_PREFIX/etc/openssl/cert.pem`
+  - `$ZEROBREW_PREFIX/share/ca-certificates/cacert.pem`
+</ParamField>
+
+<ParamField path="SSL_CERT_FILE" type="string">
+  Path to the SSL certificate file. Uses the same priority order as `CURL_CA_BUNDLE`.
+</ParamField>
+
+<ParamField path="SSL_CERT_DIR" type="string">
+  Directory containing SSL certificates. Automatically set to one of:
+  - `$ZEROBREW_PREFIX/etc/ca-certificates`
+  - `$ZEROBREW_PREFIX/etc/openssl/certs`
+  - `$ZEROBREW_PREFIX/share/ca-certificates`
+</ParamField>
+
+## Usage Examples
+
+### Custom Installation Location
+
+```bash
+export ZEROBREW_ROOT="$HOME/.zerobrew"
+export ZEROBREW_PREFIX="$HOME/.local"
+zb install wget
+```
+
+### CI/CD Environment
+
+```bash
+export ZEROBREW_ROOT="/opt/zerobrew"
+export ZEROBREW_PREFIX="/opt/zerobrew"
+export ZEROBREW_AUTO_INIT=true
+zb install jq curl wget
+```
+
+### Docker Container
+
+```dockerfile
+ENV ZEROBREW_ROOT=/opt/zerobrew
+ENV ZEROBREW_PREFIX=/opt/zerobrew
+ENV ZEROBREW_AUTO_INIT=true
+ENV PATH="/opt/zerobrew/bin:$PATH"
+RUN zb install git make cmake
+```
+
+### Development Setup
+
+```bash
+# .envrc (for use with direnv)
+export ZEROBREW_ROOT="$PWD/.zerobrew"
+export ZEROBREW_PREFIX="$PWD/.zerobrew/prefix"
+export PATH="$ZEROBREW_PREFIX/bin:$PATH"
+```
+
+## CLI Flag Override
+
+Environment variables can be overridden using CLI flags:
+
+```bash
+# Override ZEROBREW_ROOT
+zb --root /custom/path install wget
+
+# Override ZEROBREW_PREFIX
+zb --prefix /usr/local install wget
+
+# Override ZEROBREW_AUTO_INIT
+zb --auto-init install wget
+```
+
+## Priority Order
+
+Zerobrew determines configuration values in the following priority order (highest to lowest):
+
+1. **CLI flags** - `--root`, `--prefix`, `--auto-init`
+2. **Environment variables** - `ZEROBREW_ROOT`, `ZEROBREW_PREFIX`, `ZEROBREW_AUTO_INIT`
+3. **Existing installation** - If `/opt/zerobrew` exists, it will be used
+4. **Platform defaults** - macOS uses `/opt/zerobrew`, Linux uses `$XDG_DATA_HOME/zerobrew`
+
+<Info>
+  On macOS, the prefix must not exceed 13 characters due to Mach-O binary limitations. Zerobrew defaults to using the root directory as the prefix (`/opt/zerobrew`) to maintain compatibility with Homebrew's path length.
+</Info>

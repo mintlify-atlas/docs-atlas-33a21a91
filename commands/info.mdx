@@ -1,0 +1,204 @@
+---
+title: "zb info"
+description: "Display detailed information about an installed package"
+---
+
+Shows detailed metadata about a specific package installed by zerobrew, including version, store key, and installation time.
+
+## Usage
+
+```bash
+zb info <FORMULA>
+```
+
+## Arguments
+
+<ParamField path="FORMULA" type="string" required>
+  The name of the formula to get information about. The formula must be currently installed.
+  
+  Example: `jq`, `wget`, `git`
+</ParamField>
+
+## Options
+
+<ParamField path="--root" type="path">
+  Environment: `ZEROBREW_ROOT`
+  
+  Override the root directory for zerobrew's content-addressable store.
+</ParamField>
+
+<ParamField path="--prefix" type="path">
+  Environment: `ZEROBREW_PREFIX`
+  
+  Override the prefix directory where packages are linked.
+</ParamField>
+
+<ParamField path="--concurrency" type="number">
+  Default: `20`
+  
+  Number of concurrent operations to perform.
+</ParamField>
+
+<ParamField path="--auto-init" type="boolean">
+  Alias: `--yes`
+  
+  Environment: `ZEROBREW_AUTO_INIT`
+  
+  Automatically initialize zerobrew if not already set up.
+</ParamField>
+
+## Output Fields
+
+The command displays the following information:
+
+<ResponseField name="Name" type="string">
+  The formula name (bold formatting)
+</ResponseField>
+
+<ResponseField name="Version" type="string">
+  The installed version number
+</ResponseField>
+
+<ResponseField name="Store key" type="string">
+  The first 12 characters of the content-addressable hash used to identify this package in the store. This key is based on the formula's contents and metadata.
+</ResponseField>
+
+<ResponseField name="Installed" type="timestamp">
+  When the package was installed, shown in local time with a relative timestamp.
+  
+  Format examples:
+  - Recent: `14:32 (15 minutes ago)`
+  - Today: `2024-03-15 09:20 (5 hours ago)`
+  - Older: `2024-03-10 (5 days ago)`
+</ResponseField>
+
+## Examples
+
+### Get info for an installed package
+
+```bash
+zb info jq
+```
+
+```
+Name:       jq
+Version:    1.7.1
+Store key:  a3f5d8c9b2e1
+Installed:  2024-03-15 14:32 (15 minutes ago)
+```
+
+### Package installed days ago
+
+```bash
+zb info git
+```
+
+```
+Name:       git
+Version:    2.44.0
+Store key:  7c2b9a1d4e6f
+Installed:  2024-03-10 (5 days ago)
+```
+
+### Package installed hours ago
+
+```bash
+zb info wget
+```
+
+```
+Name:       wget
+Version:    1.21.4
+Store key:  e8d7c6b5a4f3
+Installed:  2024-03-15 09:20 (5 hours ago)
+```
+
+### Package not installed
+
+```bash
+zb info nonexistent
+```
+
+```
+Formula 'nonexistent' is not installed.
+```
+
+## Use Cases
+
+### Check installation time
+
+Find out when a package was installed:
+
+```bash
+zb info node
+```
+
+### Verify package version
+
+Confirm which version of a package is installed:
+
+```bash
+zb info python@3.11
+```
+
+### Debug installation issues
+
+The store key can help identify whether a package is correctly installed in the content-addressable store:
+
+```bash
+zb info problematic-package
+```
+
+If the package appears in `zb list` but not in `zb info`, there may be a database inconsistency.
+
+### Script integration
+
+Check if a package is installed and get its version:
+
+```bash
+if zb info jq &>/dev/null; then
+  echo "jq is installed"
+  zb info jq | grep Version:
+else
+  echo "jq is not installed"
+  zb install jq
+fi
+```
+
+## Understanding Store Keys
+
+The store key is the first 12 characters of the SHA-256 hash that identifies the package in zerobrew's content-addressable store.
+
+**Key properties:**
+
+- **Content-addressable**: The same package with the same version and dependencies will always have the same store key
+- **Deduplication**: Multiple formulas that depend on the same package share the same store entry
+- **Integrity**: The store key ensures package integrity
+
+**Store location:**
+
+```bash
+$ZEROBREW_ROOT/store/objects/<full-hash>/
+```
+
+The full 64-character hash is stored in zerobrew's database, but only the first 12 characters are displayed for readability.
+
+## Comparison with Homebrew
+
+| Feature | zerobrew | Homebrew |
+|---------|----------|----------|
+| Package info | `zb info <formula>` | `brew info <formula>` |
+| Shows installed version | Yes | Yes |
+| Shows available version | No | Yes |
+| Shows dependencies | No | Yes |
+| Shows installation time | Yes | No (requires `brew list --versions`) |
+| Shows store location | Via store key | Via `brew --prefix <formula>` |
+
+For more comprehensive package information (including available updates), Homebrew's `brew info` provides additional details like homepage, description, and dependencies. zerobrew's `info` focuses on installation metadata.
+
+## Related Commands
+
+- [`zb list`](/commands/list) - List all installed packages
+- [`zb install`](/commands/install) - Install a package
+- [`zb uninstall`](/commands/uninstall) - Uninstall a package
+- [`zb outdated`](/commands/outdated) - Check for package updates

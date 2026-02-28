@@ -1,0 +1,228 @@
+---
+title: zb init
+description: Initialize zerobrew directories and configure your shell environment
+---
+
+The `zb init` command sets up zerobrew for first use by creating necessary directories and configuring your shell environment to use zerobrew packages.
+
+## Usage
+
+```bash
+zb init [OPTIONS]
+```
+
+## Options
+
+<ParamField path="--no-modify-path" type="flag">
+  Skip automatic shell configuration. Use this if you want to manually configure your shell or manage PATH yourself.
+</ParamField>
+
+## What Gets Initialized
+
+### Directory Structure
+
+The following directories are created:
+
+- `$ZEROBREW_ROOT/store` - Content-addressable package storage
+- `$ZEROBREW_ROOT/db` - Package installation database
+- `$ZEROBREW_ROOT/cache` - Downloaded bottle cache
+- `$ZEROBREW_ROOT/locks` - Concurrency control
+- `$ZEROBREW_PREFIX/bin` - Symlinks to package executables
+- `$ZEROBREW_PREFIX/Cellar` - Package installation directories (kegs)
+
+### Shell Configuration
+
+Unless `--no-modify-path` is specified, init adds a configuration block to your shell profile:
+
+**For Bash/Zsh:**
+- Environment variables (ZEROBREW_DIR, ZEROBREW_ROOT, ZEROBREW_PREFIX, etc.)
+- PKG_CONFIG_PATH configuration
+- SSL/TLS certificate paths (CURL_CA_BUNDLE, SSL_CERT_FILE, SSL_CERT_DIR)
+- PATH updates to include zerobrew binaries
+
+**For Fish:**
+- Creates `~/.config/fish/conf.d/zerobrew.fish` with equivalent configuration
+
+## Shell Profile Detection
+
+The command automatically detects your shell and updates the appropriate config file:
+
+| Shell | Config File Priority |
+|-------|----------------------|
+| zsh | `.zshenv` → `.zshrc` (respects `$ZDOTDIR`) |
+| bash | `.bash_profile` → `.bashrc` |
+| fish | `.config/fish/conf.d/zerobrew.fish` |
+| other | `.profile` |
+
+## Permissions
+
+If the target directories require elevated permissions, init will:
+
+1. Prompt for `sudo` to create directories
+2. Create the directory structure
+3. Change ownership to your user account
+
+This is common when using system paths like `/opt/zerobrew`.
+
+## Examples
+
+### Standard Initialization
+
+Configure zerobrew with default settings:
+
+```bash
+zb init
+```
+
+Output:
+```
+==> Initializing zerobrew...
+    Creating directories (requires sudo)...
+    ✓ Updated zerobrew configuration in /home/user/.bashrc
+    ✓ Added /home/user/.zerobrew/bin and /opt/zerobrew/bin to PATH
+==> Initialization complete!
+```
+
+### Manual PATH Configuration
+
+Skip automatic shell configuration:
+
+```bash
+zb init --no-modify-path
+```
+
+Output:
+```
+==> Initializing zerobrew...
+    → Skipped shell configuration (--no-modify-path)
+    → To use zerobrew, add /home/user/.zerobrew/bin and /opt/zerobrew/bin to your PATH
+==> Initialization complete!
+```
+
+Then manually add to your shell config:
+
+```bash
+export ZEROBREW_DIR="$HOME/.zerobrew"
+export ZEROBREW_PREFIX="/opt/zerobrew"
+export PATH="$ZEROBREW_DIR/bin:$ZEROBREW_PREFIX/bin:$PATH"
+```
+
+### Custom Paths
+
+Use environment variables to customize locations:
+
+```bash
+zb --root /custom/root --prefix /custom/prefix init
+```
+
+<Note>
+On macOS, the prefix path is limited to 13 characters due to Mach-O binary format constraints. Longer paths will cause warnings and may fail for path-sensitive packages like git and curl.
+</Note>
+
+## Auto-Initialization
+
+If you run any zerobrew command without initializing first, you'll be prompted:
+
+```
+Note: Zerobrew needs to be initialized first.
+    This will create directories at:
+      • /home/user/.zerobrew
+      • /opt/zerobrew
+
+Initialize now? [Y/n]
+```
+
+To skip this prompt, use the `--auto-init` flag:
+
+```bash
+zb --auto-init install jq
+```
+
+Or set the environment variable:
+
+```bash
+export ZEROBREW_AUTO_INIT=1
+```
+
+## Environment Variables Set
+
+After initialization, these environment variables are configured:
+
+<ParamField path="ZEROBREW_DIR" type="string">
+  Location of zerobrew installation (default: `~/.zerobrew`)
+</ParamField>
+
+<ParamField path="ZEROBREW_BIN" type="string">
+  Location of zerobrew binaries (default: `~/.zerobrew/bin`)
+</ParamField>
+
+<ParamField path="ZEROBREW_ROOT" type="string">
+  Root directory for zerobrew data (store, db, cache)
+</ParamField>
+
+<ParamField path="ZEROBREW_PREFIX" type="string">
+  Installation prefix for packages (bin, Cellar)
+</ParamField>
+
+<ParamField path="PKG_CONFIG_PATH" type="string">
+  Updated to include zerobrew's pkg-config files
+</ParamField>
+
+<ParamField path="CURL_CA_BUNDLE" type="string">
+  SSL certificate bundle (set if ca-certificates is installed)
+</ParamField>
+
+<ParamField path="SSL_CERT_FILE" type="string">
+  SSL certificate file (set if ca-certificates is installed)
+</ParamField>
+
+<ParamField path="SSL_CERT_DIR" type="string">
+  SSL certificate directory (set if ca-certificates is installed)
+</ParamField>
+
+## Managed Configuration Block
+
+The shell configuration is wrapped in marker comments:
+
+```bash
+# >>> zerobrew >>>
+# ... zerobrew configuration ...
+# <<< zerobrew <<<
+```
+
+Running `zb init` again will update the configuration block without duplicating it.
+
+## Troubleshooting
+
+### Changes Not Taking Effect
+
+After initialization, reload your shell configuration:
+
+```bash
+# Bash
+source ~/.bashrc
+
+# Zsh
+source ~/.zshrc
+
+# Or restart your terminal
+```
+
+### Permission Denied
+
+If you see permission errors, the command will prompt for `sudo` automatically. Ensure you have sudo privileges.
+
+### macOS Prefix Length Warning
+
+```
+Warning: Prefix "/opt/my-long-prefix" (18 chars) exceeds the macOS Mach-O limit of 13 characters.
+         Path-sensitive packages (e.g. git, curl) will fail to install.
+         Consider a shorter prefix, e.g.: zb init <root> /opt/zerobrew
+```
+
+Use a shorter prefix path (13 characters or less) on macOS.
+
+## Related Commands
+
+- [`zb install`](/commands/install) - Install packages after initialization
+- [`zb migrate`](/commands/migrate) - Migrate from Homebrew

@@ -1,0 +1,235 @@
+---
+title: "Contributing"
+description: "Guidelines for contributing to zerobrew"
+---
+
+Thanks for your interest in contributing to zerobrew! This guide will help you get started.
+
+## Licensing
+
+By contributing to zerobrew, you agree your contributions will be dual-licensed under either [Apache](https://github.com/lucasgelfond/zerobrew/blob/main/LICENSE-APACHE.md) OR [MIT](https://github.com/lucasgelfond/zerobrew/blob/main/LICENSE-MIT.md), at the licensee's choice.
+
+## Prerequisites
+
+<CardGroup cols={2}>
+  <Card title="Rust 1.90+" icon="rust">
+    Install the latest stable Rust toolchain
+  </Card>
+  <Card title="macOS or Linux" icon="desktop">
+    Development requires either platform
+  </Card>
+</CardGroup>
+
+## A Note on LLM Usage
+
+While we encourage the use of LLMs for thinking through problems, helping with tests, and even writing code, we cannot accept PRs with no clear guidance or thought put into them.
+
+<Warning>
+  We reserve the right to close PRs that exhibit clear indicators of heavy LLM usage without thoughtful engagement. Code must reach a level of quality that's typically achieved through thoughtful engagement in the community and the issues/agenda of zerobrew.
+</Warning>
+
+If you need help or want to walk through an issue or idea with maintainers, join the [community Discord](https://discord.gg/TVatsQBFJt) - we're happy to assist!
+
+## Project Structure
+
+zerobrew is organized as a Cargo workspace with three crates:
+
+<CardGroup cols={3}>
+  <Card title="zb_core" icon="cube">
+    Core data models and domain logic (formula resolution, bottle selection)
+  </Card>
+  <Card title="zb_io" icon="arrows-rotate">
+    I/O operations (API client, downloads, extraction, installation)
+  </Card>
+  <Card title="zb_cli" icon="terminal">
+    Command-line interface
+  </Card>
+</CardGroup>
+
+Any changes that touch several crates should be organized properly. See [commit hygiene](#commit-hygiene) below.
+
+## Development Workflow
+
+We prefer that PRs are linked to an open issue or previously discussed through other channels. If you're introducing changes that aren't tracked, reach out in Discord or open an issue first.
+
+### General Flow
+
+<Steps>
+  <Step title="Fork the repository">
+    Create your own fork of the zerobrew repository
+  </Step>
+  
+  <Step title="Make your changes">
+    Ensure at minimum:
+    - Code is formatted: `cargo fmt --all`
+    - No clippy warnings: `cargo clippy --workspace --all-targets -- -D warnings`
+    - Unit tests pass: `cargo test --workspace`
+    - Integration tests pass: `cargo test --workspace -- --ignored`
+    
+    <Note>
+      These will run in CI, but it's best to clean up your code before opening a PR to ensure a quick turnaround!
+    </Note>
+  </Step>
+  
+  <Step title="Write tests">
+    Each module should have accompanying tests for new functionality
+  </Step>
+  
+  <Step title="Commit with clear messages">
+    Follow our [commit hygiene](#commit-hygiene) guidelines
+  </Step>
+  
+  <Step title="Push and create PR">
+    Push to your fork and submit a pull request
+  </Step>
+</Steps>
+
+### Using Just
+
+This project includes a `Justfile`. Install [just](https://github.com/casey/just) and use these commands:
+
+<CodeGroup>
+```bash Build
+just build  # Format, lint, then build debug binary
+```
+
+```bash Install
+just install  # Build and install to $HOME/.local/bin
+```
+
+```bash Uninstall
+just uninstall  # Remove all installations and configs
+```
+
+```bash Format
+just fmt  # Check code formatting
+```
+
+```bash Lint
+just lint  # Run clippy with strict warnings
+```
+
+```bash Test
+just test  # Run all workspace tests (unit & integration)
+```
+</CodeGroup>
+
+<Tip>
+  Before creating a PR, make sure you `build` your changes and `test` them.
+</Tip>
+
+You can customize the installation directory with `$ZEROBREW_BIN`:
+```bash
+export ZEROBREW_BIN=~/bin
+just install
+```
+
+## Commit Hygiene
+
+Follow this format for commit messages:
+
+```bash
+[prefix]($crate): description
+```
+
+### Examples
+
+```bash
+fix(zb_cli): handle edge case in command parsing
+feat(zb_core): add support for bottle selection caching
+chore(zb_io): update dependency versions
+```
+
+### Allowed Prefixes
+
+| Prefix | Description |
+|--------|-------------|
+| `fix` | Fixes a bug or regression |
+| `feat` | New feature |
+| `chore` | Housekeeping (deps, typos in docs, etc.) |
+| `tests` | Added, changed, or removed tests |
+| `ci` | Changes to CI |
+| `refactor` | Refactored code |
+| `perf` | Performance related |
+| `build` | Changes to build system (external deps, tooling, scripts) |
+
+### Atomic Commits
+
+Write isolated, [atomic commits](https://en.wikipedia.org/wiki/Atomic_commit). If your PR touches various parts of the codebase, ensure commits are contained and cleanly separated, properly describing which changes belong where.
+
+## Testing
+
+<AccordionGroup>
+  <Accordion icon="vial" title="Unit Tests">
+    - Colocate with code in `mod tests` blocks
+    - Use `tempfile` for filesystem tests
+    - Tests should be deterministic and not rely on external network access
+  </Accordion>
+  
+  <Accordion icon="flask" title="Integration Tests">
+    - Use `wiremock` for HTTP mocking
+    - Run with: `cargo test --workspace -- --ignored`
+    - Or use: `just test` for all tests
+  </Accordion>
+</AccordionGroup>
+
+## Running Benchmarks
+
+To benchmark performance:
+
+```bash
+just bench --full
+```
+
+This runs a 100-package installation suite comparing zerobrew to Homebrew. This is crucial if you're contributing performance/optimization changes.
+
+### Useful Options
+
+<CodeGroup>
+```bash Quick Test
+just bench --quick  # 22 packages
+```
+
+```bash Dry Run
+just bench --dry-run
+```
+
+```bash Full with Output
+just bench --full results/  # Writes all formats
+```
+
+```bash CSV Export
+just bench --format csv --output benchmark.csv
+```
+
+```bash With Logging
+just bench --log bench.log
+```
+</CodeGroup>
+
+### Notes
+
+- Defaults to the quick package list (22 packages); use `--full` for all 100
+- `--full [dir]` writes all formats (txt/json/csv/html) to the directory
+- `--output` infers format from file extension when `--format` is omitted
+- Output includes cold + warm cache speedups per package
+
+### macOS Homebrew Permissions
+
+On macOS, Homebrew should be installed with a user-writable prefix. If `just bench` fails with a permission error, fix it:
+
+```bash
+sudo chown -R "$(whoami)" "$(brew --prefix)"
+```
+
+## Questions?
+
+<CardGroup cols={2}>
+  <Card title="Open an Issue" icon="github" href="https://github.com/lucasgelfond/zerobrew/issues">
+    Ask questions or report problems on GitHub
+  </Card>
+  
+  <Card title="Join Discord" icon="discord" href="https://discord.gg/TVatsQBFJt">
+    Connect with maintainers and the community
+  </Card>
+</CardGroup>

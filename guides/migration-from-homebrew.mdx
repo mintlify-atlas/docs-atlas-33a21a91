@@ -1,0 +1,178 @@
+---
+title: Migrating from Homebrew
+description: Step-by-step guide to migrate your packages from Homebrew to zerobrew
+---
+
+The `zb migrate` command automates the migration of your Homebrew packages to zerobrew. This process identifies your installed Homebrew formulas, installs them using zerobrew, and optionally removes them from Homebrew.
+
+## Before You Start
+
+<Warning>
+zerobrew is experimental. We recommend running it **alongside Homebrew** rather than as a replacement. Do not purge Homebrew unless you are absolutely sure about the implications.
+</Warning>
+
+zerobrew can migrate:
+- Core formulas from `homebrew-core`
+
+zerobrew **cannot** migrate:
+- Formulas from non-core taps (third-party repositories)
+- Casks (GUI applications)
+
+## Migration Process
+
+<Steps>
+  <Step title="Run the migrate command">
+    Execute the migration command to scan your Homebrew installation:
+
+    ```bash
+    zb migrate
+    ```
+
+    This will display all detected packages:
+
+    ```
+    ==> Fetching installed Homebrew packages...
+        24 core formulas, 3 non-core formulas, 5 casks found
+
+    Note: Formulas from non-core taps cannot be migrated to zerobrew:
+        • custom-tool (myuser/tap)
+        • special-formula (company/internal)
+
+    Note: Casks cannot be migrated to zerobrew (only CLI formulas are supported):
+        • docker
+        • visual-studio-code
+    ```
+  </Step>
+
+  <Step title="Review the migration plan">
+    The command will list all core formulas that can be migrated:
+
+    ```
+    The following 24 formulas will be migrated:
+        • jq
+        • wget
+        • git
+        • sqlite
+        ...
+    ```
+
+    You'll be prompted to continue:
+
+    ```
+    Continue with migration? [y/N]
+    ```
+  </Step>
+
+  <Step title="Install packages with zerobrew">
+    After confirmation, zerobrew will install each formula:
+
+    ```
+    ==> Migrating 24 formulas to zerobrew...
+        ○ jq... ✓
+        ○ wget... ✓
+        ○ git... ✓
+    ```
+
+    If any packages fail to install, they'll be listed at the end:
+
+    ```
+    Warning: Failed to migrate 2 formula(s):
+        • package-name
+        • another-package
+    ```
+  </Step>
+
+  <Step title="Uninstall from Homebrew (optional)">
+    After successful migration, you'll be prompted to uninstall the formulas from Homebrew:
+
+    ```
+    Uninstall 22 formula(s) from Homebrew? [y/N]
+    ```
+
+    If you confirm, zerobrew will run `brew uninstall` for each successfully migrated package:
+
+    ```
+    ==> Uninstalling from Homebrew...
+        ○ jq... ✓
+        ○ wget... ✓
+    ```
+  </Step>
+</Steps>
+
+## Command Options
+
+### Skip prompts with `-y`
+
+To automatically accept all prompts, use the `-y` or `--yes` flag:
+
+```bash
+zb migrate -y
+```
+
+This will:
+1. Automatically proceed with migration
+2. Automatically uninstall migrated packages from Homebrew
+
+### Force uninstall with `--force`
+
+If packages have dependents in Homebrew, the uninstall step may fail. Use `--force` to ignore dependencies:
+
+```bash
+zb migrate --force
+```
+
+This passes the `--force` flag to `brew uninstall`, removing packages even if other Homebrew formulas depend on them.
+
+<Warning>
+Using `--force` may break Homebrew packages that depend on the uninstalled formulas. Only use this if you're removing all Homebrew packages or understand the dependency implications.
+</Warning>
+
+### Combine options
+
+```bash
+zb migrate -y --force
+```
+
+## After Migration
+
+Once migration is complete:
+
+1. Verify your packages work correctly:
+   ```bash
+   zb list
+   jq --version
+   wget --version
+   ```
+
+2. Non-core formulas and casks remain in Homebrew and will continue to work
+
+3. You can continue using both zerobrew and Homebrew side-by-side
+
+## Troubleshooting
+
+### Package fails to migrate
+
+If a package fails during migration:
+
+1. Check the error message for details
+2. Try installing it manually:
+   ```bash
+   zb install package-name
+   ```
+3. If it still fails, the package may not be fully supported yet
+
+### Homebrew uninstall fails
+
+If uninstall from Homebrew fails:
+
+```bash
+brew uninstall --force package-name
+```
+
+Or keep it in Homebrew if other packages depend on it.
+
+## Related Commands
+
+- [Brewfile Management](/guides/brewfile-management) - Export migrated packages to a Brewfile
+- `zb list` - View all installed zerobrew packages
+- `zb info <formula>` - Get information about a specific package

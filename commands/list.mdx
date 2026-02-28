@@ -1,0 +1,191 @@
+---
+title: "zb list"
+description: "List all installed packages"
+---
+
+Displays all packages currently installed by zerobrew, showing their names and versions.
+
+## Usage
+
+```bash
+zb list
+```
+
+## Arguments
+
+This command takes no arguments.
+
+## Options
+
+<ParamField path="--root" type="path">
+  Environment: `ZEROBREW_ROOT`
+  
+  Override the root directory for zerobrew's content-addressable store.
+</ParamField>
+
+<ParamField path="--prefix" type="path">
+  Environment: `ZEROBREW_PREFIX`
+  
+  Override the prefix directory where packages are linked.
+</ParamField>
+
+<ParamField path="--concurrency" type="number">
+  Default: `20`
+  
+  Number of concurrent operations to perform.
+</ParamField>
+
+<ParamField path="--auto-init" type="boolean">
+  Alias: `--yes`
+  
+  Environment: `ZEROBREW_AUTO_INIT`
+  
+  Automatically initialize zerobrew if not already set up.
+</ParamField>
+
+## Output Format
+
+Each installed package is displayed on a single line:
+
+```
+<name> <version>
+```
+
+- **name** - The formula name (bold)
+- **version** - The installed version (dimmed)
+
+## Examples
+
+### List installed packages
+
+```bash
+zb list
+```
+
+```
+jq 1.7.1
+wget 1.21.4
+git 2.44.0
+openssl@3 3.2.1
+pcre2 10.43
+gettext 0.22.5
+```
+
+### No packages installed
+
+If you haven't installed any packages yet:
+
+```bash
+zb list
+```
+
+```
+No formulas installed.
+```
+
+### After installing packages
+
+```bash
+zb install jq wget
+zb list
+```
+
+```
+jq 1.7.1
+wget 1.21.4
+openssl@3 3.2.1
+```
+
+Note that dependencies (like `openssl@3`) are also shown.
+
+## Use Cases
+
+### Check what's installed
+
+Quickly see all packages managed by zerobrew:
+
+```bash
+zb list
+```
+
+### Export to Brewfile
+
+Use `list` output to manually create a Brewfile, or use [`zb bundle dump`](/commands/bundle) to do it automatically:
+
+```bash
+zb bundle dump
+```
+
+### Count installed packages
+
+```bash
+zb list | wc -l
+```
+
+```
+12
+```
+
+### Find specific package
+
+```bash
+zb list | grep node
+```
+
+```
+node 21.6.2
+```
+
+### Script usage
+
+Check if a package is installed in a script:
+
+```bash
+if zb list | grep -q "^jq "; then
+  echo "jq is installed"
+else
+  echo "jq is not installed"
+  zb install jq
+fi
+```
+
+## Implementation Details
+
+The `list` command reads from zerobrew's local installation database, which tracks:
+
+- Formula name
+- Installed version
+- Store key (content-addressable hash)
+- Installation timestamp
+- Link status
+
+For more detailed information about a specific package, use [`zb info`](/commands/info).
+
+## Comparison with Homebrew
+
+| Feature | zerobrew | Homebrew |
+|---------|----------|----------|
+| List installed | `zb list` | `brew list` |
+| Output format | name + version | name only (or verbose) |
+| Show dependencies | Yes | With `--formula` |
+| Machine-readable | Output is parseable | Use `brew list --json` |
+
+## Performance
+
+The `list` command is instant, as it reads from a local SQLite database rather than scanning the filesystem:
+
+```bash
+time zb list > /dev/null
+```
+
+```
+0.01s user 0.00s system 95% cpu 0.012 total
+```
+
+## Related Commands
+
+- [`zb info`](/commands/info) - Show detailed information about a specific package
+- [`zb install`](/commands/install) - Install packages
+- [`zb uninstall`](/commands/uninstall) - Uninstall packages
+- [`zb bundle dump`](/commands/bundle) - Export packages to a Brewfile
+- [`zb outdated`](/commands/outdated) - Show packages with available updates

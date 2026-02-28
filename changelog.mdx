@@ -1,0 +1,122 @@
+---
+title: "Changelog"
+description: "All notable changes to zerobrew"
+---
+
+All notable changes to zerobrew are documented here.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## Unreleased
+
+### Added
+
+<AccordionGroup>
+  <Accordion icon="hammer" title="Local source build fallback">
+    Compile packages from source when no bottle is available for your platform.
+    
+    [Pull Request #212](https://github.com/lucasgelfond/zerobrew/pull/212)
+  </Accordion>
+
+  <Accordion icon="flag" title="--build-from-source / -s flag">
+    Force building packages from source with the new flag for `zb install`.
+    
+    ```bash
+    zb install <package> --build-from-source
+    # or
+    zb install <package> -s
+    ```
+    
+    [Pull Request #212](https://github.com/lucasgelfond/zerobrew/pull/212)
+  </Accordion>
+
+  <Accordion icon="plug" title="External tap and cask support">
+    Install packages from external taps and casks with safer install/uninstall behavior.
+    
+    [Pull Request #203](https://github.com/lucasgelfond/zerobrew/pull/203)
+  </Accordion>
+
+  <Accordion icon="download" title="GitHub release installs">
+    Install packages directly from GitHub releases with automatic clone fallback.
+    
+    [Pull Request #198](https://github.com/lucasgelfond/zerobrew/pull/198)
+  </Accordion>
+</AccordionGroup>
+
+### Fixed
+
+<AccordionGroup>
+  <Accordion icon="apple" title="Include zbx binaries in GitHub releases">
+    Fixed the "zbx-darwin-arm64 not found" error on macOS ARM devices.
+    
+    [Pull Request #229](https://github.com/lucasgelfond/zerobrew/pull/229)
+  </Accordion>
+
+  <Accordion icon="lock" title="Preserve execute bit when patching">
+    Mach-O binary string patching now preserves the execute bit on files.
+    
+    [Pull Request #228](https://github.com/lucasgelfond/zerobrew/pull/228)
+  </Accordion>
+
+  <Accordion icon="link" title="Prevent bricked installs from link conflicts">
+    Improved handling of link conflicts and proper respect for keg-only formulas.
+    
+    [Pull Request #207](https://github.com/lucasgelfond/zerobrew/pull/207)
+  </Accordion>
+
+  <Accordion icon="folder" title="Default macOS prefix to /opt/zerobrew">
+    Changed default prefix to stay within the 13-character Mach-O path limit on macOS.
+    
+    [Pull Request #206](https://github.com/lucasgelfond/zerobrew/pull/206)
+  </Accordion>
+
+  <Accordion icon="terminal" title="Shell init management and fish support">
+    Improved shell initialization with proper support for fish shell.
+    
+    [Pull Request #200](https://github.com/lucasgelfond/zerobrew/pull/200)
+  </Accordion>
+
+  <Accordion icon="folder-plus" title="Remove -D flag from install">
+    Removed unnecessary `-D` flag since directories are already created.
+    
+    [Pull Request #221](https://github.com/lucasgelfond/zerobrew/pull/221)
+  </Accordion>
+
+  <Accordion icon="link-simple" title="Force static liblzma linking">
+    Static linking of liblzma with verification for macOS binaries.
+    
+    [Pull Request #222](https://github.com/lucasgelfond/zerobrew/pull/222)
+  </Accordion>
+
+  <Accordion icon="ruler" title="Skip patching when new prefix is longer">
+    Automatically skip binary patching when the new prefix exceeds the old prefix length.
+    
+    [Pull Request #227](https://github.com/lucasgelfond/zerobrew/pull/227)
+  </Accordion>
+</AccordionGroup>
+
+### Changed
+
+- Refreshed README with banner and star history ([#224](https://github.com/lucasgelfond/zerobrew/pull/224))
+
+## 0.1.1 - 2026-02-08
+
+<Note>
+  Initial release of zerobrew - a fast, modern package manager. We're excited for our pilot release and want to thank all the support from all channels, as well as all our contributors up to this point.
+</Note>
+
+To get an idea of the initial features zerobrew supports, check out the [README](https://github.com/lucasgelfond/zerobrew#readme).
+
+See the [full commit history](https://github.com/lucasgelfond/zerobrew/commits/v0.1.1) for more details.
+
+---
+
+<CardGroup cols={2}>
+  <Card title="View Releases" icon="tag" href="https://github.com/lucasgelfond/zerobrew/releases">
+    See all releases on GitHub
+  </Card>
+  
+  <Card title="Compare Changes" icon="code-compare" href="https://github.com/lucasgelfond/zerobrew/compare/v0.1.1...HEAD">
+    View unreleased changes
+  </Card>
+</CardGroup>

@@ -1,0 +1,343 @@
+---
+title: Advanced Settings
+description: Fine-tune zerobrew performance and behavior with advanced configuration options
+---
+
+Zerobrew provides advanced configuration options for power users who need fine-grained control over performance, concurrency, and behavior.
+
+## Concurrency Settings
+
+Zerobrew uses parallel operations to maximize performance. You can control the level of concurrency for different operations.
+
+### Global Concurrency
+
+<ParamField path="--concurrency" type="integer" default="20">
+  Sets the maximum number of concurrent download operations. This is a global setting that affects how many packages can be downloaded simultaneously.
+
+  **Constraints:**
+  - Minimum value: `1`
+  - Maximum value: Limited by system resources
+  - Must be a positive integer
+
+  **Usage:**
+  ```bash
+  # Use 10 concurrent downloads
+  zb --concurrency 10 install wget curl jq
+
+  # Maximum parallelism (use with caution)
+  zb --concurrency 50 install $(cat packages.txt)
+
+  # Conservative setting for limited bandwidth
+  zb --concurrency 4 install large-package
+  ```
+
+  **Performance considerations:**
+  - Higher values can improve speed on fast connections but may overwhelm slower networks
+  - Consider your network bandwidth and system resources when adjusting
+  - Default value of 20 is optimized for most use cases
+</ParamField>
+
+### Internal Concurrency Limits
+
+Zerobrew internally manages concurrency for different pipeline stages. These are hardcoded in the source code but are documented here for reference:
+
+<ParamField path="download" type="integer" default="20">
+  Maximum concurrent package downloads. Controlled by the `--concurrency` flag.
+</ParamField>
+
+<ParamField path="unpack" type="integer" default="4">
+  Maximum concurrent package extraction operations. This limit prevents excessive CPU and disk I/O usage during unpacking.
+</ParamField>
+
+<ParamField path="materialize" type="integer" default="4">
+  Maximum concurrent package materialization operations (linking files from the store to the cellar). This limit prevents excessive file system operations.
+</ParamField>
+
+<Info>
+  The `unpack` and `materialize` concurrency limits are currently hardcoded and cannot be changed via CLI flags or environment variables. They are optimized for balanced CPU, I/O, and disk performance.
+</Info>
+
+## Command-Specific Options
+
+Many zerobrew commands support additional flags for customizing behavior.
+
+### Install Options
+
+<ParamField path="--no-link" type="boolean" default="false">
+  Install packages without creating symlinks in the prefix directory. Useful for testing or when you want to manage links manually.
+
+  **Usage:**
+  ```bash
+  zb install --no-link wget
+  ```
+</ParamField>
+
+<ParamField path="--build-from-source" type="boolean" default="false">
+  Build packages from source instead of using precompiled bottles. This allows customization and optimization for your specific system.
+
+  **Usage:**
+  ```bash
+  zb install --build-from-source wget
+  ```
+
+  **Alias:** `-s`
+  ```bash
+  zb install -s wget
+  ```
+</ParamField>
+
+### Bundle Options
+
+<ParamField path="--file" type="string" default="Brewfile">
+  Specify a custom Brewfile location for bundle operations.
+
+  **Usage:**
+  ```bash
+  # Install from custom Brewfile
+  zb bundle install --file packages.txt
+
+  # Dump to custom location
+  zb bundle dump --file ~/my-packages.txt
+  ```
+
+  **Alias:** `-f`
+  ```bash
+  zb bundle install -f packages.txt
+  ```
+</ParamField>
+
+<ParamField path="--force" type="boolean" default="false">
+  Overwrite existing Brewfile when dumping.
+
+  **Usage:**
+  ```bash
+  zb bundle dump --force
+  ```
+</ParamField>
+
+### Uninstall Options
+
+<ParamField path="--all" type="boolean" default="false">
+  Uninstall all installed packages.
+
+  **Usage:**
+  ```bash
+  zb uninstall --all
+  ```
+
+  <Warning>
+    This will remove all installed packages. Use with caution.
+  </Warning>
+</ParamField>
+
+### Migrate Options
+
+<ParamField path="--yes" type="boolean" default="false">
+  Skip confirmation prompts during migration from Homebrew.
+
+  **Usage:**
+  ```bash
+  zb migrate --yes
+  ```
+
+  **Alias:** `-y`
+  ```bash
+  zb migrate -y
+  ```
+</ParamField>
+
+<ParamField path="--force" type="boolean" default="false">
+  Force migration even if packages are already installed.
+
+  **Usage:**
+  ```bash
+  zb migrate --force
+  ```
+</ParamField>
+
+### Reset Options
+
+<ParamField path="--yes" type="boolean" default="false">
+  Skip confirmation prompt when resetting zerobrew installation.
+
+  **Usage:**
+  ```bash
+  zb reset --yes
+  ```
+
+  **Alias:** `-y`
+  ```bash
+  zb reset -y
+  ```
+
+  <Warning>
+    This will delete all zerobrew data including installed packages, cache, and database. This operation cannot be undone.
+  </Warning>
+</ParamField>
+
+### Init Options
+
+<ParamField path="--no-modify-path" type="boolean" default="false">
+  Initialize zerobrew without modifying shell configuration files (`.bashrc`, `.zshrc`, etc.).
+
+  **Usage:**
+  ```bash
+  zb init --no-modify-path
+  ```
+
+  Useful when:
+  - You want to manually add zerobrew to your PATH
+  - Using a custom shell configuration setup
+  - Running in containers or CI where shell config modification is not desired
+</ParamField>
+
+### Outdated Options
+
+<ParamField path="--quiet" type="boolean" default="false">
+  Show only package names without version information.
+
+  **Usage:**
+  ```bash
+  zb outdated --quiet
+  ```
+
+  **Alias:** `-q`
+  ```bash
+  zb outdated -q
+  ```
+
+  **Conflicts with:** `--verbose`, `--json`
+</ParamField>
+
+<ParamField path="--verbose" type="boolean" default="false">
+  Show detailed version information for outdated packages.
+
+  **Usage:**
+  ```bash
+  zb outdated --verbose
+  ```
+
+  **Alias:** `-v`
+  ```bash
+  zb outdated -v
+  ```
+
+  **Conflicts with:** `--quiet`, `--json`
+</ParamField>
+
+<ParamField path="--json" type="boolean" default="false">
+  Output outdated packages as JSON for programmatic consumption.
+
+  **Usage:**
+  ```bash
+  zb outdated --json | jq '.'
+  ```
+
+  **Conflicts with:** `--quiet`, `--verbose`
+</ParamField>
+
+## Shell Completion
+
+Zerobrew supports shell completion for multiple shells.
+
+**Generate completion script:**
+```bash
+# Bash
+zb completion bash > /etc/bash_completion.d/zb
+
+# Zsh
+zb completion zsh > "${fpath[1]}/_zb"
+
+# Fish
+zb completion fish > ~/.config/fish/completions/zb.fish
+
+# PowerShell
+zb completion powershell > zb.ps1
+```
+
+## Performance Tuning
+
+### Optimizing for Fast Networks
+
+If you have a fast internet connection and powerful hardware:
+
+```bash
+# Increase concurrency for faster installations
+export ZB_ALIAS='zb --concurrency 40'
+alias zb='$ZB_ALIAS'
+
+zb install wget curl jq git node python
+```
+
+### Optimizing for Limited Resources
+
+For systems with limited bandwidth or older hardware:
+
+```bash
+# Reduce concurrency to avoid overwhelming the system
+zb --concurrency 2 install package-name
+```
+
+### CI/CD Optimization
+
+For continuous integration environments:
+
+```bash
+# Fast, automated, non-interactive
+export ZEROBREW_AUTO_INIT=true
+zb --concurrency 30 install $(cat build-deps.txt)
+```
+
+## Build Environment Variables
+
+When building packages from source, zerobrew sets several environment variables:
+
+<ParamField path="ZEROBREW_PREFIX" type="string">
+  Set during build to help build scripts locate dependencies and determine installation paths.
+</ParamField>
+
+<ParamField path="HOMEBREW_PREFIX" type="string">
+  Set to the same value as `ZEROBREW_PREFIX` for Homebrew formula compatibility.
+</ParamField>
+
+## Example Configurations
+
+### High-Performance Workstation
+
+```bash
+# ~/.zshrc or ~/.bashrc
+export ZEROBREW_ROOT="/opt/zerobrew"
+export ZEROBREW_PREFIX="/opt/zerobrew"
+export PATH="$ZEROBREW_PREFIX/bin:$PATH"
+
+# Alias for high-concurrency installs
+alias zbfast='zb --concurrency 40'
+```
+
+### Resource-Constrained Environment
+
+```bash
+# ~/.zshrc or ~/.bashrc
+export ZEROBREW_ROOT="$HOME/.zerobrew"
+export ZEROBREW_PREFIX="$HOME/.local"
+export PATH="$ZEROBREW_PREFIX/bin:$PATH"
+
+# Alias for conservative installs
+alias zb='command zb --concurrency 4'
+```
+
+### Multi-User System
+
+```bash
+# System-wide configuration
+export ZEROBREW_ROOT="/opt/zerobrew"
+export ZEROBREW_PREFIX="/usr/local"
+export PATH="$ZEROBREW_PREFIX/bin:$PATH"
+
+# Moderate concurrency for shared resources
+alias zb='command zb --concurrency 10'
+```
+
+<Tip>
+  The `--concurrency` flag affects only download operations. Extraction and materialization are automatically managed for optimal performance across all system configurations.
+</Tip>

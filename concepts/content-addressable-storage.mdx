@@ -1,0 +1,214 @@
+---
+title: Content-addressable storage
+description: How zerobrew uses SHA-256 hashing and APFS clonefile for efficient package storage
+---
+
+Content-addressable storage (CAS) is one of zerobrew's core optimizations, enabling automatic deduplication and zero-copy installation on APFS.
+
+## What is content-addressable storage?
+
+In traditional package managers, each package installation stores a complete copy of all files. zerobrew instead uses a two-layer architecture:
+
+1. **Store layer**: Downloaded bottles are extracted once and stored by their SHA-256 hash
+2. **Cellar layer**: Individual package installations reference the shared store
+
+This means if two packages use the same bottle (common for packages at the same version), the files are stored only once.
+
+## How it works
+
+### Download and storage
+
+When zerobrew installs a package:
+
+1. **Download bottle**: The pre-built package archive is downloaded
+2. **Verify checksum**: SHA-256 hash is verified against Homebrew's metadata
+3. **Store by hash**: Archive is saved as `cache/blobs/<sha256>.tar.gz`
+4. **Extract to store**: Contents extracted to `store/<sha256>/`
+5. **Materialization**: Files copied from store to cellar
+
+<Note>
+  The store directory uses the bottle's SHA-256 hash as the key, making storage content-addressable. The same content always has the same address.
+</Note>
+
+### Reference counting
+
+zerobrew tracks how many installed packages reference each store entry:
+
+```sql
+CREATE TABLE store_refs (
+    store_key TEXT PRIMARY KEY,  -- SHA-256 hash
+    refcount INTEGER NOT NULL    -- Number of kegs using this
+);
+```
+
+When you install a package:
+- If the store entry exists: increment `refcount`
+- If the store entry doesn't exist: extract bottle and set `refcount = 1`
+
+When you uninstall a package:
+- Decrement `refcount`
+- If `refcount` reaches 0: mark as unreferenced (cleaned up during `zb gc`)
+
+### Garbage collection
+
+Run `zb gc` to remove unreferenced store entries:
+
+```bash
+zb gc
+```
+
+This frees disk space from bottles that are no longer referenced by any installed package.
+
+## APFS clonefile: zero-copy installation
+
+On macOS with APFS (Apple File System), zerobrew uses `clonefile` for instant, space-efficient copying.
+
+### What is clonefile?
+
+APFS clonefile creates a copy-on-write clone of a file or directory:
+
+- **Instant**: No data is actually copied, just metadata
+- **Space-efficient**: The clone and original share disk blocks until modified
+- **Transparent**: The clone appears as a complete, independent copy
+
+This is similar to how Git stores objects or how Btrfs/ZFS handle snapshots.
+
+### How zerobrew uses clonefile
+
+During materialization (copying from store to cellar), zerobrew attempts:
+
+1. **APFS clonefile** (macOS only): Instant copy-on-write clone
+2. **Hardlinks** (fallback): Link files instead of copying
+3. **Regular copy** (final fallback): Copy file contents
+
+From `zb_io/src/cellar/materialize.rs`:
+
+```rust
+fn copy_dir_with_fallback(src: &Path, dst: &Path) -> Result<(), Error> {
+    // Try clonefile first (APFS), then hardlink, then copy
+    #[cfg(target_os = "macos")]
+    {
+        if try_clonefile_dir(src, dst).is_ok() {
+            return Ok(());
+        }
+    }
+
+    // Fall back to recursive copy with hardlink/copy per file
+    copy_dir_recursive(src, dst, true)
+}
+```
+
+<Tip>
+  On APFS, installing a package from the store to cellar is nearly instant and uses minimal additional disk space, even for large packages like FFmpeg.
+</Tip>
+
+### Clonefile vs hardlinks
+
+**APFS clonefile advantages:**
+- Works across directories
+- Preserves file independence (modifying clone doesn't affect original)
+- Handles entire directory trees in one syscall
+- Preserves extended attributes and metadata
+
+**Hardlink advantages:**
+- Works on non-APFS filesystems (ext4, XFS, etc.)
+- Widely supported across Unix-like systems
+
+**Regular copy:**
+- Always works, but slow and space-inefficient
+- Used as final fallback when other methods fail
+
+## Platform differences
+
+### macOS (APFS)
+
+- Uses clonefile for instant materialization
+- Additional patching for Mach-O binaries:
+  - Rewrites Homebrew path placeholders
+  - Ad-hoc code signing after modifications
+  - Strips quarantine extended attributes
+
+### Linux
+
+- Uses hardlinks or copy (no clonefile equivalent)
+- Patches ELF binaries for Homebrew path placeholders
+- No code signing required
+
+## Benefits of content-addressable storage
+
+**Automatic deduplication**: If multiple packages use the same bottle version, files stored once
+
+**Safe concurrent access**: File locks prevent corruption when multiple processes install simultaneously
+
+**Efficient upgrades**: New version creates new store entry; old version remains until garbage collected
+
+**Reproducibility**: Same SHA-256 hash always produces same installation
+
+**Bandwidth savings**: Downloaded bottles cached in `cache/blobs/` for reuse
+
+## Storage usage example
+
+Traditional approach (Homebrew):
+```
+cellar/ffmpeg/7.0.1/  -> 200 MB
+cellar/ffmpeg/7.0.2/  -> 202 MB
+Total: 402 MB
+```
+
+zerobrew with APFS clonefile:
+```
+store/abc123.../      -> 200 MB (original)
+store/def456.../      -> 202 MB (original)
+cellar/ffmpeg/7.0.1/  -> ~0 MB (cloned)
+cellar/ffmpeg/7.0.2/  -> ~0 MB (cloned)
+Total: ~402 MB (minimal overhead for clones)
+```
+
+After `zb uninstall ffmpeg@7.0.1` and `zb gc`:
+```
+store/def456.../      -> 202 MB
+cellar/ffmpeg/7.0.2/  -> ~0 MB (cloned)
+Total: ~202 MB (old version cleaned up)
+```
+
+<Info>
+  The "~0 MB" for cloned directories means they consume negligible additional space due to APFS copy-on-write.
+</Info>
+
+## Implementation details
+
+### Locking strategy
+
+From `zb_io/src/storage/store.rs`, zerobrew uses file locks to prevent race conditions:
+
+```rust
+pub fn ensure_entry(&self, store_key: &str, blob_path: &Path) -> Result<PathBuf, Error> {
+    let entry_path = self.entry_path(store_key);
+    
+    // Fast path: already exists
+    if entry_path.exists() {
+        return Ok(entry_path);
+    }
+    
+    // Acquire exclusive lock for this store_key
+    let lock_path = self.locks_dir.join(format!("{store_key}.lock"));
+    let lock_file = File::create(&lock_path)?;
+    lock_file.lock_exclusive()?;
+    
+    // Double-check after acquiring lock
+    if entry_path.exists() {
+        return Ok(entry_path);
+    }
+    
+    // Extract archive to temp directory, then atomically rename
+    // ...
+}
+```
+
+### Atomic operations
+
+- Downloads write to `.part` files, renamed atomically on completion
+- Store extraction uses temporary `.tmp.{pid}` directories, renamed atomically
+- Database updates use SQLite transactions
+
+This ensures zerobrew can safely handle crashes, interruptions, and concurrent operations.

@@ -1,0 +1,174 @@
+---
+title: Installation
+description: Install zerobrew on macOS or Linux
+---
+
+# Installation
+
+Install zerobrew on macOS or Linux using the installation script.
+
+## Prerequisites
+
+The installer will check for and install the following if needed:
+
+- `curl` - for downloading files
+- `git` - for cloning the repository (source builds only)
+- `cargo` and Rust toolchain (source builds only)
+
+## Quick install
+
+<Steps>
+  <Step title="Run the installation script">
+    Download and execute the zerobrew installer:
+
+    ```bash
+    curl -fsSL https://zerobrew.rs/install | bash
+    ```
+
+    The installer will:
+    - Download the latest pre-built binaries for your platform (if available)
+    - Fall back to building from source if pre-built binaries are unavailable
+    - Install `zb` and `zbx` binaries to `~/.local/bin`
+    - Set up environment variables and PATH configuration
+  </Step>
+
+  <Step title="Configure your shell">
+    After installation, run the `export` command that the installer prints, or restart your terminal:
+
+    ```bash
+    # Example output from installer
+    export PATH="$HOME/.local/bin:$PATH"
+    ```
+
+    <Note>
+    The installer automatically modifies your shell configuration files (`.zshrc`, `.bashrc`, etc.) unless you use the `--no-modify-path` flag.
+    </Note>
+  </Step>
+
+  <Step title="Verify installation">
+    Check that zerobrew is installed correctly:
+
+    ```bash
+    zb --version
+    ```
+  </Step>
+</Steps>
+
+## Installation options
+
+The installer supports several options for customization:
+
+### Don't modify PATH
+
+Prevent the installer from modifying your shell configuration files:
+
+```bash
+curl -fsSL https://zerobrew.rs/install | bash -s -- --no-modify-path
+```
+
+### Install from local binaries
+
+If you've already built zerobrew locally, you can install the binaries directly:
+
+```bash
+curl -fsSL https://zerobrew.rs/install | bash -s -- --binary /path/to/zb /path/to/zbx
+```
+
+### View help
+
+To see all available options:
+
+```bash
+curl -fsSL https://zerobrew.rs/install | bash -s -- --help
+```
+
+## Installation directories
+
+zerobrew uses the following directory structure:
+
+| Directory | Purpose | Default Location |
+|-----------|---------|------------------|
+| `ZEROBREW_ROOT` | Root directory for zerobrew data | `/opt/zerobrew` (macOS)<br/>`$XDG_DATA_HOME/zerobrew` (Linux) |
+| `ZEROBREW_PREFIX` | Symlink prefix for installed packages | Same as `ZEROBREW_ROOT` (macOS)<br/>`$ZEROBREW_ROOT/prefix` (Linux) |
+| `ZEROBREW_BIN` | Binary installation directory | `$HOME/.local/bin` |
+| `ZEROBREW_DIR` | Repository clone location | `$HOME/.zerobrew` |
+
+<Tip>
+On macOS, zerobrew uses the root directory directly as the prefix to maintain compatibility with Mach-O binary path length constraints (13 characters, same as `/opt/homebrew`).
+</Tip>
+
+## Supported platforms
+
+Pre-built binaries are available for:
+
+- **macOS**: ARM64 (Apple Silicon), x86_64 (Intel)
+- **Linux**: ARM64, x86_64
+
+If a pre-built binary isn't available for your platform, the installer will automatically fall back to building from source.
+
+## Building from source
+
+If you prefer to build from source or need a platform without pre-built binaries:
+
+<Steps>
+  <Step title="Install Rust">
+    Install the Rust toolchain if you don't have it:
+
+    ```bash
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+    ```
+  </Step>
+
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/lucasgelfond/zerobrew.git
+    cd zerobrew
+    ```
+  </Step>
+
+  <Step title="Build the binaries">
+    ```bash
+    cargo build --release --bin zb --bin zbx
+    ```
+
+    The binaries will be available in `target/release/`.
+  </Step>
+
+  <Step title="Install the binaries">
+    ```bash
+    mkdir -p ~/.local/bin
+    cp target/release/zb target/release/zbx ~/.local/bin/
+    ```
+  </Step>
+
+  <Step title="Initialize zerobrew">
+    ```bash
+    zb init
+    ```
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+### Command not found after installation
+
+If `zb` is not found after installation, ensure `~/.local/bin` is in your PATH:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+Add this line to your shell configuration file (`.zshrc`, `.bashrc`, etc.) to make it permanent.
+
+### Build failures
+
+If the source build fails, check that you have:
+
+- A recent version of Rust (run `rustup update`)
+- Required system libraries (the installer will guide you)
+
+### Permission errors
+
+<Warning>
+Do not run the installer with `sudo`. The installer will automatically request privileges when needed for system directory access.
+</Warning>

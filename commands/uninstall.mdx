@@ -1,0 +1,151 @@
+---
+title: "zb uninstall"
+description: "Remove one or more installed packages"
+---
+
+Uninstalls one or more formulas from your system, removing both the symlinks and the installation metadata.
+
+## Usage
+
+```bash
+zb uninstall <FORMULAS>... [OPTIONS]
+```
+
+## Arguments
+
+<ParamField path="FORMULAS" type="string[]">
+  One or more formula names to uninstall. Required unless `--all` is used.
+  
+  Examples: `jq`, `wget`, `git`
+</ParamField>
+
+## Options
+
+<ParamField path="--all" type="boolean">
+  Uninstall all currently installed formulas. When this flag is used, you don't need to specify individual formula names.
+  
+  **Warning**: This will remove all packages installed with zerobrew.
+</ParamField>
+
+<ParamField path="--root" type="path">
+  Environment: `ZEROBREW_ROOT`
+  
+  Override the root directory for zerobrew's content-addressable store.
+</ParamField>
+
+<ParamField path="--prefix" type="path">
+  Environment: `ZEROBREW_PREFIX`
+  
+  Override the prefix directory where packages are linked.
+</ParamField>
+
+<ParamField path="--concurrency" type="number">
+  Default: `20`
+  
+  Number of concurrent operations to perform.
+</ParamField>
+
+<ParamField path="--auto-init" type="boolean">
+  Alias: `--yes`
+  
+  Environment: `ZEROBREW_AUTO_INIT`
+  
+  Automatically initialize zerobrew if not already set up.
+</ParamField>
+
+## Examples
+
+### Uninstall a single package
+
+```bash
+zb uninstall jq
+```
+
+```
+==> Uninstalling jq...
+```
+
+### Uninstall multiple packages
+
+```bash
+zb uninstall wget git
+```
+
+```
+==> Uninstalling wget, git...
+    ○ wget... ✓
+    ○ git... ✓
+```
+
+### Uninstall all packages
+
+```bash
+zb uninstall --all
+```
+
+```
+==> Uninstalling jq, wget, git, openssl@3, pcre2...
+    ○ jq... ✓
+    ○ wget... ✓
+    ○ git... ✓
+    ○ openssl@3... ✓
+    ○ pcre2... ✓
+```
+
+If no packages are installed:
+
+```
+No formulas installed.
+```
+
+## Behavior
+
+When you uninstall a formula, zerobrew:
+
+1. **Removes symlinks** from the prefix directory (e.g., `/usr/local/bin`)
+2. **Removes installation metadata** from the local database
+3. **Keeps store entries** - the actual files remain in the content-addressable store
+
+To clean up unused store entries, use [`zb gc`](/commands/gc) after uninstalling packages.
+
+## Error Handling
+
+### Formula not installed
+
+If you try to uninstall a package that isn't installed:
+
+```
+Error: Formula 'nonexistent' is not installed
+```
+
+### Partial failures
+
+When uninstalling multiple packages, zerobrew will attempt to uninstall all of them even if some fail:
+
+```bash
+zb uninstall jq wget nonexistent
+```
+
+```
+==> Uninstalling jq, wget, nonexistent...
+    ○ jq... ✓
+    ○ wget... ✓
+    ○ nonexistent... ✗
+Error: Failed to uninstall nonexistent: Formula 'nonexistent' is not installed
+```
+
+## Comparison with Homebrew
+
+| Feature | zerobrew | Homebrew |
+|---------|----------|----------|
+| Uninstall command | `zb uninstall` | `brew uninstall` |
+| Uninstall all | `zb uninstall --all` | `brew uninstall $(brew list)` |
+| Remove dependencies | Manual with `zb gc` | `brew autoremove` |
+| Store cleanup | `zb gc` | Automatic |
+
+## Related Commands
+
+- [`zb install`](/commands/install) - Install packages
+- [`zb list`](/commands/list) - List installed packages
+- [`zb gc`](/commands/gc) - Clean up unused store entries
+- [`zb reset`](/commands/reset) - Uninstall everything and reset zerobrew

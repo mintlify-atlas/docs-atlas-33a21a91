@@ -1,0 +1,224 @@
+---
+title: Building Packages from Source
+description: Compile packages from source code instead of using pre-built bottles
+---
+
+By default, zerobrew installs pre-built bottles (binary packages) from Homebrew's infrastructure for maximum speed. However, you can build packages from source when needed using the `--build-from-source` flag.
+
+## When to Build from Source
+
+Consider building from source when:
+
+- Pre-built bottles are unavailable for your platform
+- You need custom compilation flags or optimizations
+- You're debugging package issues
+- You want packages optimized for your specific CPU architecture
+- A bottle is corrupted or outdated
+
+<Warning>
+Building from source is significantly slower than installing bottles. A package that installs in seconds from a bottle may take minutes to build from source.
+</Warning>
+
+## Basic Usage
+
+Use the `-s` or `--build-from-source` flag with `zb install`:
+
+```bash
+zb install jq --build-from-source
+zb install jq -s
+```
+
+Output:
+
+```
+==> Installing jq...
+==> Resolving dependencies (1 packages)...
+    jq 1.7.1
+==> Downloading and installing formulas...
+    jq              ⠋ building from source...
+```
+
+## Installing Multiple Packages from Source
+
+Build all specified packages from source:
+
+```bash
+zb install wget git sqlite --build-from-source
+```
+
+This builds `wget`, `git`, and `sqlite` from source, along with any dependencies.
+
+## How Source Builds Work
+
+When you use `--build-from-source`, zerobrew:
+
+1. Downloads the formula definition from `homebrew-core`
+2. Fetches the source tarball or repository
+3. Compiles the package using Homebrew's Ruby DSL build instructions
+4. Installs to zerobrew's content-addressable store
+5. Links binaries to your prefix (unless `--no-link` is used)
+
+## Build Requirements
+
+Building from source requires:
+
+- **Compiler toolchain**: Xcode Command Line Tools (macOS) or build-essential (Linux)
+- **Ruby**: For executing Homebrew formula build scripts
+- **Dependencies**: Any build-time dependencies the package requires
+
+### Installing build tools on macOS
+
+```bash
+xcode-select --install
+```
+
+### Installing build tools on Linux
+
+```bash
+# Debian/Ubuntu
+sudo apt-get install build-essential
+
+# Fedora/RHEL
+sudo dnf groupinstall "Development Tools"
+```
+
+## Combining with Other Flags
+
+### Build from source without linking
+
+```bash
+zb install ffmpeg --build-from-source --no-link
+```
+
+This builds ffmpeg from source but doesn't add it to your PATH.
+
+### Build and install in one command
+
+```bash
+zb install ripgrep -s && ripgrep --version
+```
+
+## Performance Comparison
+
+Typical installation times:
+
+| Package | Bottle (cold) | Bottle (warm) | From Source |
+|---------|---------------|---------------|-------------|
+| jq | 392ms | 130ms | ~30s |
+| sqlite | 625ms | 159ms | ~45s |
+| git | ~800ms | ~200ms | ~90s |
+| ffmpeg | 3481ms | 688ms | ~15min |
+
+<Warning>
+Complex packages like `ffmpeg` can take 10-30 minutes to build from source depending on your CPU.
+</Warning>
+
+## Dependencies
+
+When building from source, all dependencies are also built from source by default. For example:
+
+```bash
+zb install git --build-from-source
+```
+
+This also builds dependencies like `openssl`, `curl`, `pcre2`, etc. from source, significantly increasing build time.
+
+## Troubleshooting Source Builds
+
+### Build fails with compiler error
+
+Ensure you have development tools installed:
+
+```bash
+# macOS
+xcode-select --install
+
+# Linux
+which gcc make
+```
+
+### Missing build dependencies
+
+If a build fails due to missing dependencies:
+
+```
+error: Failed to build: openssl dependency not found
+```
+
+The dependency should be auto-installed. If not, install it manually:
+
+```bash
+zb install openssl
+zb install git --build-from-source
+```
+
+### Build takes too long
+
+Some packages have many dependencies. Check what will be built:
+
+```bash
+zb info git
+```
+
+Consider using bottles instead if available:
+
+```bash
+zb install git  # Use pre-built bottle
+```
+
+### Disk space issues
+
+Source builds require temporary disk space for:
+- Source code
+- Intermediate build artifacts
+- Final compiled binaries
+
+Ensure you have several GB of free space for large packages like `llvm` or `gcc`.
+
+## When Bottles Aren't Available
+
+If no pre-built bottle exists for your platform, zerobrew automatically falls back to building from source:
+
+```bash
+zb install some-package
+```
+
+Output:
+
+```
+==> Installing some-package...
+Note: No bottle available, building from source...
+```
+
+No `--build-from-source` flag is needed in this case.
+
+## Architecture-Specific Builds
+
+Building from source allows optimization for your CPU:
+
+- On Apple Silicon (M1/M2), native ARM64 optimizations
+- On Intel, x86_64 optimizations with CPU-specific flags
+- On Linux, distribution-specific optimizations
+
+Bottles are pre-built for common architectures and may not be fully optimized for your specific CPU.
+
+## Source Code Location
+
+During builds, zerobrew:
+
+1. Downloads sources to `$ZEROBREW_ROOT/cache`
+2. Extracts and builds in temporary directories
+3. Installs to `$ZEROBREW_ROOT/store/<hash>`
+4. Cleans up temporary build artifacts
+
+You can inspect the cache:
+
+```bash
+ls $ZEROBREW_ROOT/cache
+```
+
+## Related Commands
+
+- `zb install <formula>` - Install using bottles (default)
+- `zb info <formula>` - View package information and dependencies
+- `zb gc` - Clean up unused store entries and cache files

@@ -1,80 +1,293 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick start
+description: Get started with zerobrew and run your first commands
 ---
 
-## Get started in three steps
+# Quick start
 
-Get your documentation site running locally and make your first customization.
+This guide will help you get started with zerobrew by walking through the most common commands and workflows.
 
-### Step 1: Set up your local environment
+## Your first installation
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+Let's install a package using zerobrew. We'll use `jq`, a popular command-line JSON processor:
+
+<Steps>
+  <Step title="Install a package">
+    Run the install command:
+
+    ```bash
+    zb install jq
+    ```
+
+    You'll see output showing the installation progress:
+
+    ```
+    ==> Installing jq...
+    ==> Resolving dependencies (1 packages)...
+        jq 1.7.1
+    ==> Downloading and installing formulas...
+        jq               ━━━━━━━━━━━━━━━━━━━━━━━━ ✓ installed
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    ==> Installed 1 packages in 0.68s
+    ```
+  </Step>
+
+  <Step title="Verify the installation">
+    Check that `jq` is now available:
+
+    ```bash
+    jq --version
+    ```
+
+    You should see the version number printed.
+  </Step>
+</Steps>
+
+## Installing multiple packages
+
+You can install multiple packages in a single command:
+
+```bash
+ zb install wget git curl
+```
+
+zerobrew will automatically:
+- Resolve all dependencies
+- Download packages in parallel
+- Install them efficiently using content-addressable storage
+
+## Working with Brewfiles
+
+Brewfiles allow you to manage your packages as code. This is useful for reproducible environments and dotfiles.
+
+<Steps>
+  <Step title="Create a Brewfile">
+    Create a file named `Brewfile` in your project directory:
+
+    ```ruby Brewfile
+    # Development tools
+    brew "git"
+    brew "wget"
+    brew "jq"
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+    # Programming languages
+    brew "python@3.11"
+    brew "node"
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    # Optional: casks (macOS applications)
+    # cask "docker-desktop"
+    ```
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Install from Brewfile">
+    Install all packages from the Brewfile:
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```bash
+    zb bundle
+    ```
 
-### Step 3: Go live
+    Or specify a custom file:
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+    ```bash
+    zb bundle install -f myfile
+    ```
+  </Step>
+
+  <Step title="Export current packages">
+    You can also export your currently installed packages to a Brewfile:
+
+    ```bash
+    zb bundle dump
+    ```
+
+    To overwrite an existing file:
+
+    ```bash
+    zb bundle dump -f Brewfile --force
+    ```
+  </Step>
+</Steps>
+
+## Running without installing
+
+Use `zbx` to run a package without linking it to your prefix:
+
+```bash
+zbx jq --version
+```
+
+This is useful for:
+- One-time commands
+- Testing packages before installation
+- Running different versions temporarily
+
+## Common commands
+
+Here's a quick reference of the most common zerobrew commands:
+
+<CodeGroup>
+
+```bash Install packages
+# Install one package
+zb install jq
+
+# Install multiple packages
+zb install wget git curl
+
+# Build from source instead of using bottles
+zb install ffmpeg --build-from-source
+
+# Install without creating symlinks
+zb install libsodium --no-link
+```
+
+```bash Manage packages
+# List installed packages
+zb list
+
+# Get package information
+zb info jq
+
+# Uninstall a package
+zb uninstall jq
+
+# Check for outdated packages
+zb outdated
+
+# Update package metadata
+zb update
+```
+
+```bash Bundle operations
+# Install from Brewfile
+zb bundle
+
+# Install from custom file
+zb bundle install -f myfile
+
+# Export installed packages
+zb bundle dump
+
+# Export to custom file (overwrite)
+zb bundle dump -f output --force
+```
+
+```bash Maintenance
+# Garbage collect unused store entries
+zb gc
+
+# Remove all installed packages
+zb reset
+
+# Initialize zerobrew environment
+zb init
+```
+
+</CodeGroup>
+
+## Advanced options
+
+zerobrew supports several global options:
+
+### Concurrency control
+
+Adjust the number of parallel operations (default is 20):
+
+```bash
+zb --concurrency 10 install ffmpeg
+```
+
+### Custom directories
+
+Override the default installation directories:
+
+```bash
+zb --root /custom/root --prefix /custom/prefix install jq
+```
+
+Or use environment variables:
+
+```bash
+export ZEROBREW_ROOT="/custom/root"
+export ZEROBREW_PREFIX="/custom/prefix"
+zb install jq
+```
+
+### Auto-initialize
+
+Automatically initialize zerobrew if not already set up:
+
+```bash
+zb --auto-init install jq
+```
+
+## Shell completion
+
+Generate shell completion scripts for your shell:
+
+<CodeGroup>
+
+```bash Bash
+zb completion bash > ~/.local/share/bash-completion/completions/zb
+```
+
+```bash Zsh
+zb completion zsh > "${fpath[1]}/_zb"
+```
+
+```bash Fish
+zb completion fish > ~/.config/fish/completions/zb.fish
+```
+
+</CodeGroup>
+
+## Understanding the output
+
+When you install a package, zerobrew shows detailed progress:
+
+```
+==> Installing jq...
+```
+Indicates the package being installed.
+
+```
+==> Resolving dependencies (3 packages)...
+    jq 1.7.1
+    oniguruma 6.9.9
+    libffi 3.4.4
+```
+Shows all packages that will be installed, including dependencies.
+
+```
+==> Downloading and installing formulas...
+    jq               ━━━━━━━━━━━━━━━━━━━━━━━━ ✓ installed
+    oniguruma        ━━━━━━━━━━━━━━━━━━━━━━━━ ✓ installed
+    libffi           ━━━━━━━━━━━━━━━━━━━━━━━━ ✓ installed
+```
+Progress bars for each package showing download and installation status.
+
+```
+==> Installed 3 packages in 1.23s
+```
+Summary with total time elapsed.
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card
+    title="Commands reference"
+    icon="terminal"
+  >
+    Explore all available zerobrew commands and options
+  </Card>
+  <Card
+    title="Configuration"
+    icon="gear"
+  >
+    Learn about environment variables and configuration options
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+<Tip>
+Remember that zerobrew is experimental. If you encounter issues with a specific formula, you can always fall back to using Homebrew for that package while using zerobrew for others.
+</Tip>

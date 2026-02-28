@@ -1,0 +1,191 @@
+---
+title: zb reset
+description: Reset zerobrew by removing all data and reinitializing
+---
+
+The `zb reset` command completely removes all zerobrew data directories and reinitializes a fresh installation.
+
+<Warning>
+This is a destructive operation that will delete all installed packages, cached data, and store entries. This action cannot be undone.
+</Warning>
+
+## Usage
+
+```bash
+zb reset [OPTIONS]
+```
+
+## Options
+
+<ParamField path="--yes" type="flag">
+  Skip the confirmation prompt and proceed with reset immediately. Use with caution.
+</ParamField>
+
+<ParamField path="-y" type="flag">
+  Short form of `--yes`.
+</ParamField>
+
+## Description
+
+The reset command performs a complete cleanup and reinitialization of zerobrew:
+
+1. Removes all content from `ZEROBREW_ROOT` directory (store, cache, metadata)
+2. Removes all content from `ZEROBREW_PREFIX` directory (symlinks, binaries)
+3. Reinitializes the directory structure
+4. Leaves you with a clean installation ready for fresh package installs
+
+<Note>
+If the directories don't exist, the command will report "Nothing to reset" and exit successfully.
+</Note>
+
+## Permission Handling
+
+The reset command intelligently handles permission issues:
+
+- First attempts to remove directory contents without elevated privileges
+- If permission denied and running interactively, falls back to `sudo rm -rf`
+- If permission denied in non-interactive mode, exits with an error
+- Does not require sudo to recreate the directory structure after cleanup
+
+## Interactive Mode (Default)
+
+By default, the command prompts for confirmation before proceeding:
+
+```bash
+zb reset
+```
+
+You'll see:
+
+```
+Warning: This will delete all zerobrew data at:
+      • /Users/username/.zerobrew
+      • /Users/username/.zerobrew-prefix
+Continue? [y/N]
+```
+
+Type `y` and press Enter to proceed, or `n` (or anything else) to abort.
+
+## Non-Interactive Mode
+
+For scripts or automation, use the `--yes` flag to skip the confirmation:
+
+```bash
+zb reset --yes
+```
+
+Or the short form:
+
+```bash
+zb reset -y
+```
+
+<Warning>
+When using `--yes` or `-y`, the command proceeds immediately without any confirmation. Use this flag carefully, especially in scripts.
+</Warning>
+
+## Examples
+
+Reset with confirmation prompt:
+
+```bash
+zb reset
+```
+
+Reset without confirmation (use carefully):
+
+```bash
+zb reset --yes
+```
+
+Reset in a shell script:
+
+```bash
+#!/bin/bash
+echo "Cleaning up zerobrew installation..."
+zb reset -y
+echo "Starting fresh installation..."
+zb install node python git
+```
+
+## Output
+
+During reset:
+
+```
+Warning: This will delete all zerobrew data at:
+      • /Users/username/.zerobrew
+      • /Users/username/.zerobrew-prefix
+Continue? [y/N] y
+==> Clearing /Users/username/.zerobrew...
+==> Clearing /Users/username/.zerobrew-prefix...
+==> Reset complete. Ready for cold install.
+```
+
+When directories don't exist:
+
+```
+Nothing to reset - directories do not exist.
+```
+
+## Use Cases
+
+Reset zerobrew when you need to:
+
+- Fix a corrupted installation
+- Start completely fresh after testing
+- Clear all packages and cached data
+- Troubleshoot persistent issues
+- Free up all disk space used by zerobrew
+
+## What Gets Removed
+
+The reset command removes:
+
+- All installed packages
+- Content-addressed store entries
+- Formula cache and API cache
+- Package metadata and lock files
+- Binary symlinks in prefix directory
+- Installation manifests
+
+## What Gets Preserved
+
+The reset command does NOT modify:
+
+- Shell configuration files (e.g., `.bashrc`, `.zshrc`)
+- PATH modifications made during `zb init`
+- User files outside zerobrew directories
+
+<Tip>
+After running `zb reset`, your shell PATH will still reference the zerobrew directories. You don't need to run `zb init` again - you can immediately start installing packages.
+</Tip>
+
+## Recovery
+
+There is no built-in recovery mechanism for reset. If you need to preserve your package list:
+
+```bash
+# Before reset, save your package list
+zb list > my-packages.txt
+
+# After reset, reinstall packages
+zb install $(cat my-packages.txt)
+```
+
+Or use Brewfile with bundle:
+
+```bash
+# Before reset
+zb bundle dump
+
+# After reset
+zb bundle install
+```
+
+## Related Commands
+
+- [zb init](/commands/init) - Initialize zerobrew (automatically run by reset)
+- [zb gc](/commands/gc) - Remove unreferenced store entries without full reset
+- [zb uninstall](/commands/uninstall) - Remove specific packages
+- [zb bundle dump](/commands/bundle) - Save package list to Brewfile
